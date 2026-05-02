@@ -38,5 +38,5 @@ jobs:
           file: .github/Dockerfile.builder
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/foyer-cores-builder:latest
-            ghcr.io/${{ github.repository_owner }}/foyer-cores-builder:sha-${{ github.sha }}
+            ghcr.io/foyer-frontend/foyer-cores-builder:latest
+            ghcr.io/foyer-frontend/foyer-cores-builder:sha-${{ github.sha }}
