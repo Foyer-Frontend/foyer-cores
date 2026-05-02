@@ -15,15 +15,22 @@ FetchContent_MakeAvailable(libretro_mesen)
 
 set(_M ${libretro_mesen_SOURCE_DIR})
 
-# Top-level Core/ and Utilities/ .cpp files only — sub-directories like
-# Utilities/SevenZip and Utilities/Lua are excluded from libretro builds.
-# SZReader.cpp depends on the LZMA SDK in Utilities/SevenZip/ which we
-# skip, so drop it from the source list (Mesen falls back to miniz for
-# zip handling).
-file(GLOB _MESEN_CORE  "${_M}/Core/*.cpp")
-file(GLOB _MESEN_UTIL  "${_M}/Utilities/*.cpp")
-list(FILTER _MESEN_UTIL EXCLUDE REGEX ".*/SZReader\\.cpp$")
-list(APPEND _MESEN_SRC ${_MESEN_CORE} ${_MESEN_UTIL}
+# Top-level Core/ + Utilities/ .cpp files PLUS the scaler sub-dirs
+# (HQX, xBRZ, Scale2x, KreedSaiEagle) and the LZMA SDK at SevenZip/
+# (which lives at the repo root, not under Utilities/). Lua is the only
+# Utilities/ subdir we deliberately skip.
+file(GLOB _MESEN_CORE       "${_M}/Core/*.cpp")
+file(GLOB _MESEN_UTIL       "${_M}/Utilities/*.cpp")
+file(GLOB _MESEN_HQX        "${_M}/Utilities/HQX/*.cpp")
+file(GLOB _MESEN_XBRZ       "${_M}/Utilities/xBRZ/*.cpp")
+file(GLOB _MESEN_SCALE2X    "${_M}/Utilities/Scale2x/*.cpp")
+file(GLOB _MESEN_KREEDSAI   "${_M}/Utilities/KreedSaiEagle/*.cpp")
+file(GLOB _MESEN_SEVENZIP_C "${_M}/SevenZip/*.c")
+
+list(APPEND _MESEN_SRC
+    ${_MESEN_CORE} ${_MESEN_UTIL}
+    ${_MESEN_HQX} ${_MESEN_XBRZ} ${_MESEN_SCALE2X} ${_MESEN_KREEDSAI}
+    ${_MESEN_SEVENZIP_C}
     ${_M}/Libretro/libretro.cpp
 )
 
@@ -32,6 +39,9 @@ target_include_directories(core_mesen PUBLIC
     ${_M}
     ${_M}/Core
     ${_M}/Utilities
+    ${_M}/Utilities/HQX
+    ${_M}/Utilities/xBRZ
+    ${_M}/SevenZip
     ${_M}/Libretro
 )
 target_compile_definitions(core_mesen PRIVATE
