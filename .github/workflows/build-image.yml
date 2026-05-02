@@ -1,0 +1,42 @@
+name: Build builder image
+
+# Builds the foyer-cores-builder image (devkitpro/devkita64 + Switch
+# portlibs) and pushes it to GitHub Container Registry. Runs on demand
+# and whenever the Dockerfile changes. Tag :latest is always updated;
+# image-build commits also tag :sha-<short-sha> for pinning.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/Dockerfile.builder'
+      - '.github/workflows/build-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/Dockerfile.builder
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/foyer-cores-builder:latest
+            ghcr.io/${{ github.repository_owner }}/foyer-cores-builder:sha-${{ github.sha }}
