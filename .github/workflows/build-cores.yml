@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 env:
   FOYER_REPO: foyer-frontend/foyer
@@ -32,8 +33,12 @@ jobs:
       # foyer-cores-builder bakes the Switch portlibs on top of
       # devkitpro/devkita64 so matrix jobs don't depend on
       # pkg.devkitpro.org's flaky CDN at runtime. Built by
-      # build-image.yml.
+      # build-image.yml. The package is private to the org by default;
+      # GITHUB_TOKEN with packages:read gives the runner pull access.
       image: ghcr.io/foyer-frontend/foyer-cores-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
