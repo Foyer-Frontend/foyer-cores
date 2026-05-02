@@ -32,6 +32,7 @@ add_library(core_vba_next STATIC
     ${_VN_COMMON}/encodings/encoding_utf.c
     ${_VN_COMMON}/file/file_path.c
     ${_VN_COMMON}/file/file_path_io.c
+    ${_VN_COMMON}/memalign.c
     ${_VN_COMMON}/streams/file_stream.c
     ${_VN_COMMON}/streams/file_stream_transforms.c
     ${_VN_COMMON}/string/stdstring.c
