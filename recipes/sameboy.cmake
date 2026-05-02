@@ -30,10 +30,15 @@ foreach(_rom IN ITEMS agb cgb dmg sgb sgb2)
     set(_c   ${_SB_BOOT_GEN_DIR}/${_rom}_boot.c)
     add_custom_command(
         OUTPUT  ${_c}
-        # xxd -n NAME emits `NAME[]` + `NAME_len`; libretro.c expects
-        # `NAME_length`. Pipe through sed to rename the size symbol.
-        COMMAND sh -c "xxd -i -n ${_rom}_boot ${_bin} | sed 's/${_rom}_boot_len/${_rom}_boot_length/g' > ${_c}"
-        DEPENDS ${_bin}
+        # bin2c.cmake produces `<name>[]` + `<name>_length` directly,
+        # which is what libretro.c expects. Pure CMake — no xxd
+        # dependency (the `-n` flag isn't on every container's xxd).
+        COMMAND ${CMAKE_COMMAND}
+            -DINPUT=${_bin}
+            -DOUTPUT=${_c}
+            -DNAME=${_rom}_boot
+            -P ${CMAKE_CURRENT_LIST_DIR}/bin2c.cmake
+        DEPENDS ${_bin} ${CMAKE_CURRENT_LIST_DIR}/bin2c.cmake
         COMMENT "Generating ${_rom}_boot.c from ${_rom}_boot.bin"
         VERBATIM)
     list(APPEND _SB_BOOT_GEN ${_c})
