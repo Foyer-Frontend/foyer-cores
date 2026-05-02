@@ -58,13 +58,15 @@ add_library(core_bsnes_hd_beta STATIC
     # that DISABLE_DEBUGGER takes out from under it.
     ${_B}/gb/Core/symbol_hash.c
     ${_B}/gb/Core/timing.c
-    # All SNES enhancement-chip processors.
+    # SNES enhancement-chip processors. bsnes/sfc/GNUmakefile sets
+    # `processors += wdc65816 spc700 arm7tdmi` so only these three TUs
+    # are compiled. The other processor/* subdirs (sm83, gsu, hg51b,
+    # upd96050) are NOT part of the libretro build — sm83 in
+    # particular references a `bit1` macro that's only #defined inside
+    # arm7tdmi/instruction.cpp, so trying to compile sm83 standalone
+    # is a dead end.
     ${_B}/processor/arm7tdmi/arm7tdmi.cpp
-    ${_B}/processor/gsu/gsu.cpp
-    ${_B}/processor/hg51b/hg51b.cpp
-    ${_B}/processor/sm83/sm83.cpp
     ${_B}/processor/spc700/spc700.cpp
-    ${_B}/processor/upd96050/upd96050.cpp
     ${_B}/processor/wdc65816/wdc65816.cpp
     # libretro frontend.
     ${_B}/target-libretro/libretro.cpp
@@ -98,8 +100,7 @@ target_compile_options(core_bsnes_hd_beta PRIVATE
     # nall/arithmetic/natural.hpp uses std::runtime_error without
     # including <stdexcept>. GCC 15 dropped the transitive include,
     # so force it in.
-    "$<$<COMPILE_LANGUAGE:CXX>:-include>"
-    "$<$<COMPILE_LANGUAGE:CXX>:stdexcept>"
+    "SHELL:$<$<COMPILE_LANGUAGE:CXX>:-include stdexcept>"
 )
 set_target_properties(core_bsnes_hd_beta PROPERTIES
     C_STANDARD                99
