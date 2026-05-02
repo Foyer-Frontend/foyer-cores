@@ -1,0 +1,94 @@
+# recipes/bsnes_hd_beta.cmake — libretro bsnes-hd-beta
+# (SNES core with HD Mode 7 and widescreen rendering).
+#
+# UNTESTED. bsnes uses a "unity build" pattern: each subsystem is a
+# single .cpp that #includes its sublibraries. The TU list below mirrors
+# bsnes/{GNUmakefile,sfc/GNUmakefile,gb/GNUmakefile,processor/GNUmakefile}
+# at the libnx target slice.
+
+include(FetchContent)
+
+FetchContent_Declare(libretro_bsnes_hd
+    GIT_REPOSITORY https://github.com/libretro/bsnes-hd.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE)
+FetchContent_MakeAvailable(libretro_bsnes_hd)
+
+set(_BSNES ${libretro_bsnes_hd_SOURCE_DIR})
+set(_B     ${_BSNES}/bsnes)
+
+add_library(core_bsnes_hd_beta STATIC
+    # Core unity TUs.
+    ${_BSNES}/libco/libco.c
+    ${_B}/emulator/emulator.cpp
+    ${_B}/filter/filter.cpp
+    ${_B}/lzma/lzma.cpp
+    # SNES (SFC) subsystem.
+    ${_B}/sfc/interface/interface.cpp
+    ${_B}/sfc/system/system.cpp
+    ${_B}/sfc/controller/controller.cpp
+    ${_B}/sfc/cartridge/cartridge.cpp
+    ${_B}/sfc/memory/memory.cpp
+    ${_B}/sfc/cpu/cpu.cpp
+    ${_B}/sfc/smp/smp.cpp
+    ${_B}/sfc/dsp/dsp.cpp
+    ${_B}/sfc/ppu/ppu.cpp
+    ${_B}/sfc/ppu-fast/ppu.cpp
+    ${_B}/sfc/expansion/expansion.cpp
+    ${_B}/sfc/coprocessor/coprocessor.cpp
+    ${_B}/sfc/slot/slot.cpp
+    # SuperGameBoy (vendored SameBoy core).
+    ${_B}/gb/Core/apu.c
+    ${_B}/gb/Core/camera.c
+    ${_B}/gb/Core/debugger.c
+    ${_B}/gb/Core/display.c
+    ${_B}/gb/Core/gb.c
+    ${_B}/gb/Core/joypad.c
+    ${_B}/gb/Core/mbc.c
+    ${_B}/gb/Core/memory.c
+    ${_B}/gb/Core/printer.c
+    ${_B}/gb/Core/random.c
+    ${_B}/gb/Core/rewind.c
+    ${_B}/gb/Core/save_state.c
+    ${_B}/gb/Core/sgb.c
+    ${_B}/gb/Core/sm83_cpu.c
+    ${_B}/gb/Core/sm83_disassembler.c
+    ${_B}/gb/Core/symbol_hash.c
+    ${_B}/gb/Core/timing.c
+    # All SNES enhancement-chip processors.
+    ${_B}/processor/arm7tdmi/arm7tdmi.cpp
+    ${_B}/processor/gsu/gsu.cpp
+    ${_B}/processor/hg51b/hg51b.cpp
+    ${_B}/processor/sm83/sm83.cpp
+    ${_B}/processor/spc700/spc700.cpp
+    ${_B}/processor/upd96050/upd96050.cpp
+    ${_B}/processor/wdc65816/wdc65816.cpp
+    # libretro frontend.
+    ${_B}/target-libretro/libretro.cpp
+)
+
+target_include_directories(core_bsnes_hd_beta PUBLIC
+    ${_B}
+    ${_BSNES}              # for nall/, libco/
+    ${_B}/target-libretro
+)
+
+target_compile_definitions(core_bsnes_hd_beta PRIVATE
+    __LIBRETRO__=1
+    SWITCH=1
+    __SWITCH__=1
+    HAVE_LIBNX=1
+    HAVE_POSIX_MEMALIGN=1
+)
+target_compile_options(core_bsnes_hd_beta PRIVATE
+    -w
+    -Wno-narrowing
+    -Wno-multichar
+    -fno-strict-aliasing
+)
+set_target_properties(core_bsnes_hd_beta PROPERTIES
+    C_STANDARD                99
+    C_STANDARD_REQUIRED       ON
+    CXX_STANDARD              17
+    CXX_STANDARD_REQUIRED     ON
+    POSITION_INDEPENDENT_CODE ON)

@@ -14,6 +14,8 @@ FetchContent_MakeAvailable(libretro_vba_next)
 
 set(_VN ${libretro_vba_next_SOURCE_DIR})
 
+set(_VN_COMMON ${_VN}/libretro-common)
+
 add_library(core_vba_next STATIC
     ${_VN}/src/gba.cpp
     ${_VN}/src/memory.cpp
@@ -21,6 +23,20 @@ add_library(core_vba_next STATIC
     ${_VN}/src/system.cpp
     ${_VN}/src/thread.c
     ${_VN}/libretro/libretro.cpp
+    # libretro-common compat (filestream_* + friends — vba-next's
+    # libretro.cpp calls these directly).
+    ${_VN_COMMON}/compat/compat_posix_string.c
+    ${_VN_COMMON}/compat/compat_strcasestr.c
+    ${_VN_COMMON}/compat/compat_strl.c
+    ${_VN_COMMON}/compat/fopen_utf8.c
+    ${_VN_COMMON}/encodings/encoding_utf.c
+    ${_VN_COMMON}/file/file_path.c
+    ${_VN_COMMON}/file/file_path_io.c
+    ${_VN_COMMON}/streams/file_stream.c
+    ${_VN_COMMON}/streams/file_stream_transforms.c
+    ${_VN_COMMON}/string/stdstring.c
+    ${_VN_COMMON}/time/rtime.c
+    ${_VN_COMMON}/vfs/vfs_implementation.c
 )
 target_include_directories(core_vba_next PUBLIC
     ${_VN}/src

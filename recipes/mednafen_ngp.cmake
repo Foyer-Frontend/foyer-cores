@@ -74,7 +74,10 @@ target_compile_definitions(core_mednafen_ngp PRIVATE
     HAVE_LIBNX=1
     LSB_FIRST=1
     HAVE_STDINT_H=1
-    "INLINE=static inline"
+    # Don't override INLINE — mednafen's z80.h declares functions with
+    # `static INLINE`, so expanding INLINE to `static inline` produces
+    # `static static inline` (duplicate 'static' error).
+    INLINE=inline
     FRONTEND_SUPPORTS_RGB565=1
     MEDNAFEN_VERSION=\"foyer-0.2\"
     MEDNAFEN_VERSION_NUMERIC=0

@@ -23,12 +23,12 @@ set(_GPGXW_DIRS
     ${_GPGXW}/core/m68k
     ${_GPGXW}/core/ntsc
     ${_GPGXW}/core/sound
-    ${_GPGXW}/core/sound/minimp3
-    ${_GPGXW}/core/sound/tremor
     ${_GPGXW}/core/input_hw
     ${_GPGXW}/core/cd_hw
     ${_GPGXW}/core/cart_hw
     ${_GPGXW}/core/cart_hw/svp
+    # Wide fork drops core/sound/tremor and core/sound/minimp3 — Mega CD
+    # audio decoding isn't supported in this branch.
 )
 set(_GPGXW_C "")
 foreach(_d ${_GPGXW_DIRS})
@@ -78,7 +78,7 @@ target_compile_definitions(core_genesis_plus_gx_wide PRIVATE
     M68K_OVERCLOCK_SHIFT=20
     HAVE_ZLIB=1
     "INLINE=static inline"
-    USE_LIBTREMOR=1
+    # USE_LIBTREMOR omitted — Wide fork doesn't bundle tremor.
     USE_PER_SOUND_CHANNELS_CONFIG=1
     USE_16BPP_RENDERING=1
     FRONTEND_SUPPORTS_RGB565=1
