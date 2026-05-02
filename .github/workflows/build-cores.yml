@@ -74,29 +74,42 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - name: Install Switch portlibs
-        # pkg.devkitpro.org's CDN intermittently 403s on db sync; retry up
-        # to 5 times with a small backoff before giving up.
+        # pkg.devkitpro.org's CDN intermittently 403s on db sync. We've
+        # observed outage windows >2 min, so 10 attempts with widening
+        # backoff (capped at 60s) gives roughly 5 min of cumulative wait
+        # before giving up on a single job.
         run: |
-          for attempt in 1 2 3 4 5; do
+          delay=10
+          for attempt in $(seq 1 10); do
               if dkp-pacman -Syu --needed --noconfirm \
                   switch-portlibs switch-sdl2 switch-sdl2-libs; then
                   exit 0
               fi
-              echo "dkp-pacman attempt $attempt failed; sleeping 15s..."
-              sleep 15
+              echo "dkp-pacman attempt $attempt failed; sleeping ${delay}s..."
+              sleep "$delay"
+              delay=$(( delay + 10 ))
+              [ "$delay" -gt 60 ] && delay=60
           done
-          echo "dkp-pacman failed after 5 attempts" >&2
+          echo "dkp-pacman failed after 10 attempts" >&2
           exit 1
 
+      # Direct cmake invocation rather than `cmake --preset` so newly-added
+      # cores work without an entry in foyer's CMakePresets.json.
       - name: Configure
         env:
           DEVKITPRO: /opt/devkitpro
         working-directory: foyer
-        run: cmake --preset Player-${{ matrix.core }}
+        run: |
+          cmake -B build/Player-${{ matrix.core }} \
+              --toolchain "$DEVKITPRO/cmake/Switch.cmake" \
+              -DCMAKE_BUILD_TYPE=MinSizeRel \
+              -DBUILD_BROWSER=OFF \
+              -DBUILD_PLAYER=ON \
+              -DFOYER_CORE=${{ matrix.core }}
 
       - name: Build
         working-directory: foyer
-        run: cmake --build --preset Player-${{ matrix.core }} -j
+        run: cmake --build build/Player-${{ matrix.core }} -j
 
       - name: Stage artefact
         working-directory: foyer
