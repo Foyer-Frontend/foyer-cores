@@ -1,0 +1,145 @@
+name: Build cores
+
+# Builds every recipe'd libretro core into a foyer-<core>.nro for the Switch
+# and attaches them to a GitHub release. The release also includes a
+# manifest.json that foyer's Settings → Install Cores can read to resolve
+# downloads + sha256s.
+#
+# Triggers on tag push v*.*.*; manual dispatch is supported for dry-runs
+# (no release published unless the ref is a tag).
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      foyer_ref:
+        description: 'foyer ref to build against (default: main)'
+        default: main
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  FOYER_REPO: foyer-frontend/foyer
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        core:
+          - fceumm
+          - nestopia
+          - gambatte
+          - snes9x
+          - mgba
+          - melonds
+          - mupen64plus
+          - genesisplusgx
+          - picodrive
+          - yabasanshiro
+          - flycast
+          - pcsx_rearmed
+          - swanstation
+          - race
+          - handy
+          - prosystem
+          - stella
+    steps:
+      - name: Checkout foyer-cores
+        uses: actions/checkout@v4
+        with:
+          path: foyer-cores
+
+      - name: Checkout foyer
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FOYER_REPO }}
+          ref: ${{ github.event.inputs.foyer_ref || 'main' }}
+          path: foyer
+          fetch-depth: 0
+
+      - name: Trust the workspace inside container
+        run: git config --global --add safe.directory '*'
+
+      - name: Install Switch portlibs
+        run: |
+          dkp-pacman -Syu --needed --noconfirm \
+              switch-portlibs switch-sdl2 switch-sdl2-libs
+
+      - name: Configure
+        env:
+          DEVKITPRO: /opt/devkitpro
+        working-directory: foyer
+        run: cmake --preset Player-${{ matrix.core }}
+
+      - name: Build
+        working-directory: foyer
+        run: cmake --build --preset Player-${{ matrix.core }} -j
+
+      - name: Stage artefact
+        working-directory: foyer
+        run: |
+          mkdir -p ../out
+          cp build/Player-${{ matrix.core }}/foyer-${{ matrix.core }}.nro ../out/
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: foyer-${{ matrix.core }}
+          path: out/foyer-${{ matrix.core }}.nro
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate manifest + checksums
+        run: |
+          mkdir -p out
+          cp artifacts/*.nro out/
+          ( cd out && sha256sum *.nro > sha256sums.txt )
+
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo '{'
+            echo "  \"version\": \"${version}\","
+            echo '  "cores": ['
+            first=1
+            for nro in $(ls out/foyer-*.nro | sort); do
+              name=$(basename "$nro" .nro | sed 's/^foyer-//')
+              size=$(stat -c%s "$nro")
+              sum=$(sha256sum "$nro" | cut -d' ' -f1)
+              url="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/$(basename $nro)"
+              [ $first -eq 0 ] && echo ','
+              first=0
+              printf '    { "name": "%s", "version": "%s", "nro": "%s", "size": %d, "sha256": "%s", "url": "%s" }' \
+                "$name" "$version" "$(basename $nro)" "$size" "$sum" "$url"
+            done
+            echo
+            echo '  ]'
+            echo '}'
+          } > out/manifest.json
+          cat out/manifest.json
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/*.nro
+            out/manifest.json
+            out/sha256sums.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
