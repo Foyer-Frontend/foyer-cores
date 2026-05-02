@@ -29,7 +29,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: devkitpro/devkita64:latest
+      # foyer-cores-builder bakes the Switch portlibs on top of
+      # devkitpro/devkita64 so matrix jobs don't depend on
+      # pkg.devkitpro.org's flaky CDN at runtime. Built by
+      # build-image.yml.
+      image: ghcr.io/foyer-frontend/foyer-cores-builder:latest
     strategy:
       fail-fast: false
       matrix:
@@ -73,25 +77,7 @@ jobs:
       - name: Trust the workspace inside container
         run: git config --global --add safe.directory '*'
 
-      - name: Install Switch portlibs
-        # pkg.devkitpro.org's CDN intermittently 403s on db sync. We've
-        # observed outage windows >2 min, so 10 attempts with widening
-        # backoff (capped at 60s) gives roughly 5 min of cumulative wait
-        # before giving up on a single job.
-        run: |
-          delay=10
-          for attempt in $(seq 1 10); do
-              if dkp-pacman -Syu --needed --noconfirm \
-                  switch-portlibs switch-sdl2 switch-sdl2-libs; then
-                  exit 0
-              fi
-              echo "dkp-pacman attempt $attempt failed; sleeping ${delay}s..."
-              sleep "$delay"
-              delay=$(( delay + 10 ))
-              [ "$delay" -gt 60 ] && delay=60
-          done
-          echo "dkp-pacman failed after 10 attempts" >&2
-          exit 1
+      # (Switch portlibs are pre-installed in the builder image.)
 
       # Direct cmake invocation rather than `cmake --preset` so newly-added
       # cores work without an entry in foyer's CMakePresets.json.
