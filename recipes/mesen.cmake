@@ -17,8 +17,12 @@ set(_M ${libretro_mesen_SOURCE_DIR})
 
 # Top-level Core/ and Utilities/ .cpp files only — sub-directories like
 # Utilities/SevenZip and Utilities/Lua are excluded from libretro builds.
+# SZReader.cpp depends on the LZMA SDK in Utilities/SevenZip/ which we
+# skip, so drop it from the source list (Mesen falls back to miniz for
+# zip handling).
 file(GLOB _MESEN_CORE  "${_M}/Core/*.cpp")
 file(GLOB _MESEN_UTIL  "${_M}/Utilities/*.cpp")
+list(FILTER _MESEN_UTIL EXCLUDE REGEX ".*/SZReader\\.cpp$")
 list(APPEND _MESEN_SRC ${_MESEN_CORE} ${_MESEN_UTIL}
     ${_M}/Libretro/libretro.cpp
 )

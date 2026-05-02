@@ -20,7 +20,6 @@ set(_NGP_CXX
     ${_NGP}/mednafen/mempatcher.cpp
     ${_NGP}/mednafen/sound/Stereo_Buffer.cpp
     ${_NGP}/mednafen/sound/Blip_Buffer.cpp
-    ${_NGP}/mednafen/ngp/hes.cpp
 )
 set(_NGP_C
     ${_NGP}/mednafen/ngp/biosHLE.c
