@@ -43,7 +43,6 @@ set(_NGP_C
     ${_NGP}/mednafen/ngp/Z80_interface.c
     ${_NGP}/mednafen/state.c
     ${_NGP}/libretro.c
-    ${_NGP}/threads.c
     ${_NGP}/libretro-common/streams/file_stream.c
     ${_NGP}/libretro-common/compat/fopen_utf8.c
     ${_NGP}/libretro-common/compat/compat_strl.c

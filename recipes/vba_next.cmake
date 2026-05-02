@@ -35,8 +35,11 @@ target_compile_definitions(core_vba_next PRIVATE
     USE_FRAME_SKIP=1
     HAVE_HLE_BIOS=1
     FRONTEND_SUPPORTS_RGB565=1
-    # Don't override INLINE — vba-next defines it internally and re-defining
-    # via -D produces "duplicate 'static'" in libretro-common headers.
+    # vba-next's sources use `INLINE` as a return-type prefix on already
+    # `static`-marked functions. Define it as just `inline` so we get
+    # `inline static foo()` (legal) instead of `static inline static`
+    # (duplicate 'static' error from libretro-common headers).
+    INLINE=inline
 )
 target_compile_options(core_vba_next PRIVATE -w)
 set_target_properties(core_vba_next PROPERTIES

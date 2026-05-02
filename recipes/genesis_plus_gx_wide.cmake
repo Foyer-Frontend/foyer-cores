@@ -9,7 +9,7 @@ include(FetchContent)
 
 FetchContent_Declare(libretro_gpgxw
     GIT_REPOSITORY https://github.com/libretro/Genesis-Plus-GX-Wide.git
-    GIT_TAG        master
+    GIT_TAG        main
     GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(libretro_gpgxw)
 
