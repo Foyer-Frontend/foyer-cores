@@ -40,7 +40,9 @@ add_library(core_bsnes_hd_beta STATIC
     # SuperGameBoy (vendored SameBoy core).
     ${_B}/gb/Core/apu.c
     ${_B}/gb/Core/camera.c
-    ${_B}/gb/Core/debugger.c
+    # debugger.c omitted — DISABLE_DEBUGGER makes its body collapse into
+    # a malformed declaration on the libnx C compiler. SuperGameBoy
+    # doesn't need the GB debugger interface.
     ${_B}/gb/Core/display.c
     ${_B}/gb/Core/gb.c
     ${_B}/gb/Core/joypad.c
@@ -52,7 +54,8 @@ add_library(core_bsnes_hd_beta STATIC
     ${_B}/gb/Core/save_state.c
     ${_B}/gb/Core/sgb.c
     ${_B}/gb/Core/sm83_cpu.c
-    ${_B}/gb/Core/sm83_disassembler.c
+    # sm83_disassembler.c omitted — also references the debugger API
+    # that DISABLE_DEBUGGER takes out from under it.
     ${_B}/gb/Core/symbol_hash.c
     ${_B}/gb/Core/timing.c
     # All SNES enhancement-chip processors.
@@ -79,12 +82,24 @@ target_compile_definitions(core_bsnes_hd_beta PRIVATE
     __SWITCH__=1
     HAVE_LIBNX=1
     HAVE_POSIX_MEMALIGN=1
+    # GB_INTERNAL exposes the SuperGameBoy chip's internal struct fields
+    # that bsnes-hd's vendored SameBoy core actually uses. Set globally —
+    # non-GB TUs don't include gb.h. DISABLE_DEBUGGER skips the debugger
+    # build of debugger.c. Both come from bsnes/gb/GNUmakefile.
+    GB_INTERNAL=1
+    DISABLE_DEBUGGER=1
+    _GNU_SOURCE=1
 )
 target_compile_options(core_bsnes_hd_beta PRIVATE
     -w
     -Wno-narrowing
     -Wno-multichar
     -fno-strict-aliasing
+    # nall/arithmetic/natural.hpp uses std::runtime_error without
+    # including <stdexcept>. GCC 15 dropped the transitive include,
+    # so force it in.
+    "$<$<COMPILE_LANGUAGE:CXX>:-include>"
+    "$<$<COMPILE_LANGUAGE:CXX>:stdexcept>"
 )
 set_target_properties(core_bsnes_hd_beta PROPERTIES
     C_STANDARD                99
