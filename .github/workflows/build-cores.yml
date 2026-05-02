@@ -52,6 +52,10 @@ jobs:
           - prosystem
           - stella
           - genesis_plus_gx_wide
+          - mesen
+          - sameboy
+          - vba_next
+          - mednafen_ngp
     steps:
       - name: Checkout foyer-cores
         uses: actions/checkout@v4
