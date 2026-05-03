@@ -63,9 +63,11 @@ jobs:
           - genesis_plus_gx_wide
           - vba_next
           - mednafen_ngp
+          - mednafen_lynx
           - bsnes_hd_beta
           - mesen
           - sameboy
+          - gpsp
           # mesen + sameboy temporarily off the matrix — both need
           # generated assets / vendored deps that the recipes don't
           # handle yet (mesen: HQX/xBRZ scalers + SevenZip; sameboy:
