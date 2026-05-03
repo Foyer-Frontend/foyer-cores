@@ -97,11 +97,23 @@ target_compile_options(core_bsnes_hd_beta PRIVATE
     -Wno-narrowing
     -Wno-multichar
     -fno-strict-aliasing
+    # bsnes is an inner-loop-bound cycle-accurate emulator; the foyer
+    # default of MinSizeRel (-Os) leaves significant performance on
+    # the table, especially for the cycle-accurate PPU path. Override
+    # to -O3 for this target only — handheld + docked Switch both
+    # benefit. Adds ~5-10 MB to the nro vs -Os.
+    -O3
     # nall/arithmetic/natural.hpp uses std::runtime_error without
     # including <stdexcept>. GCC 15 dropped the transitive include,
     # so force it in.
     "SHELL:$<$<COMPILE_LANGUAGE:CXX>:-include stdexcept>"
 )
+# Link-time optimization. bsnes is a unity-build (each subsystem is
+# a single .cpp #including its sublibs), so the compiler already
+# inlines aggressively within each TU. -flto extends that across
+# TUs — measurable speedup on the SFC CPU/SMP/DSP hot loops.
+target_compile_options(core_bsnes_hd_beta PRIVATE -flto)
+target_link_options   (core_bsnes_hd_beta PRIVATE -flto)
 set_target_properties(core_bsnes_hd_beta PROPERTIES
     C_STANDARD                99
     C_STANDARD_REQUIRED       ON
