@@ -9,6 +9,14 @@
 # the core asks for an OpenGL ES 3 context via SET_HW_RENDER and
 # renders into the FBO that HwContext provides.
 #
+# Why ship this on top of pcsx_rearmed + swanstation: mednafen_psx_hw
+# is the only PSX core that does true 3D widescreen rendering — it
+# re-renders the scene at 16:9 FOV instead of stretching the 4:3
+# framebuffer. For users who care about how PSX games look on Switch's
+# 16:9 panel, this is the differentiator. swanstation has a basic
+# widescreen hack but lacks the geometry-aware approach. Worth the
+# upstream-fixing work below.
+#
 # DEFERRED (not in matrix): upstream master's beetle_psx_griffin{,_c}
 # unity TUs reference at least 5 files that have been renamed or
 # removed without the unity files being updated:
