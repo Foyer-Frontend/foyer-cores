@@ -1,38 +1,23 @@
 # recipes/mednafen_psx_hw.cmake — libretro Beetle PSX HW
-# (Mednafen PSX with HW renderer + widescreen via OpenGL ES 3).
-#
-# Uses the upstream "griffin" unity build pattern: most of the core's
-# .cpp / .c files are #included from beetle_psx_griffin{,_c}, so we
-# only have to compile a handful of TUs.
-#
-# Requires foyer's HW render callback (shared/libretro/video_hw.cpp) —
-# the core asks for an OpenGL ES 3 context via SET_HW_RENDER and
-# renders into the FBO that HwContext provides.
+# (Mednafen PSX with HW renderer + 16:9 widescreen via OpenGL ES 3).
 #
 # Why ship this on top of pcsx_rearmed + swanstation: mednafen_psx_hw
 # is the only PSX core that does true 3D widescreen rendering — it
 # re-renders the scene at 16:9 FOV instead of stretching the 4:3
-# framebuffer. For users who care about how PSX games look on Switch's
-# 16:9 panel, this is the differentiator. swanstation has a basic
-# widescreen hack but lacks the geometry-aware approach. Worth the
-# upstream-fixing work below.
+# framebuffer. swanstation has a basic widescreen hack but lacks the
+# geometry-aware approach.
 #
-# DEFERRED (not in matrix): upstream master's beetle_psx_griffin{,_c}
-# unity TUs reference at least 5 files that have been renamed or
-# removed without the unity files being updated:
+# We use HAVE_GRIFFIN=0 (one TU per file). Upstream's griffin unity
+# TUs are out of sync — they reference 5 files that have been
+# renamed or removed (settings.cpp -> .c, state.cpp -> .c,
+# mednafen-endian.c -> .cpp, file.c removed, SimpleFIFO.cpp removed).
+# The non-griffin path is what upstream itself maintains.
 #
-#   * mednafen/settings.cpp  (now mednafen/settings.c)
-#   * mednafen/state.cpp     (now mednafen/state.c)
-#   * mednafen/mednafen-endian.c (now mednafen/mednafen-endian.cpp)
-#   * mednafen/file.c        (removed entirely)
-#   * mednafen/cdrom/SimpleFIFO.cpp (removed; only the header remains)
-#
-# A working build either needs (a) an older commit of beetle-psx
-# pinned via GIT_TAG, (b) HAVE_GRIFFIN=0 with explicit per-source
-# listing of ~100+ files, or (c) maintaining a foyer-cores fork that
-# patches the unity TUs. The recipe below is the shape the build
-# needs once one of those options is chosen — defines + include dirs
-# are correct; only the source list needs work.
+# Renderer: GLES3 via foyer's HW render callback
+# (shared/libretro/video_hw.cpp). The core asks for a GLES3 context
+# via SET_HW_RENDER and renders into the FBO that HwContext provides.
+# CHD support is OFF (would need libchdr + lzma); .pbp/.cue/.bin/.iso
+# work fine without it.
 
 include(FetchContent)
 
@@ -48,33 +33,138 @@ set(_PSX_E   ${_PSX_M}/psx)
 set(_PSX_LR  ${_PSX}/libretro-common)
 set(_PSX_DP  ${_PSX}/deps)
 
-# Sources outside the griffin unity TUs.
+# Mirror Makefile.common's HAVE_GRIFFIN=0 source list. Keep this in
+# sync with upstream when bumping FetchContent.
 set(_PSX_CXX
-    # Unity C++ TU — pulls in mednafen/psx/{cpu,gpu,gte,spu,...},
-    # mednafen/{error,settings,FileStream,...}, libretro.cpp,
-    # rsx/rsx_intf.cpp.
-    ${_PSX}/beetle_psx_griffin.cpp
-    # HAVE_GRIFFIN-listed extras.
+    # PSX core
+    ${_PSX_E}/irq.cpp
+    ${_PSX_E}/timer.cpp
     ${_PSX_E}/dma.cpp
+    ${_PSX_E}/frontio.cpp
     ${_PSX_E}/sio.cpp
-    # Root-level input mapping — libretro pad → PSX controllers.
+    ${_PSX_E}/cpu.cpp
+    ${_PSX_E}/gte.cpp
+    ${_PSX_E}/cdc.cpp
+    ${_PSX_E}/spu.cpp
+    ${_PSX_E}/gpu.cpp
+    ${_PSX_E}/gpu_polygon_sub.cpp
+    ${_PSX_E}/mdec.cpp
+    ${_PSX_E}/dis.cpp
+    # PSX peripherals
+    ${_PSX_E}/input/gamepad.cpp
+    ${_PSX_E}/input/dualanalog.cpp
+    ${_PSX_E}/input/dualshock.cpp
+    ${_PSX_E}/input/justifier.cpp
+    ${_PSX_E}/input/guncon.cpp
+    ${_PSX_E}/input/negcon.cpp
+    ${_PSX_E}/input/negconrumble.cpp
+    ${_PSX_E}/input/memcard.cpp
+    ${_PSX_E}/input/multitap.cpp
+    ${_PSX_E}/input/mouse.cpp
+    # Mednafen support
+    ${_PSX_M}/error.cpp
+    ${_PSX_M}/general.cpp
+    ${_PSX_M}/FileStream.cpp
+    ${_PSX_M}/MemoryStream.cpp
+    ${_PSX_M}/Stream.cpp
+    ${_PSX_M}/mempatcher.cpp
+    ${_PSX_M}/mednafen-endian.cpp
+    ${_PSX_M}/video/Deinterlacer.cpp
+    ${_PSX_M}/video/surface.cpp
+    # CD-ROM (sans CHD; see header comment)
+    ${_PSX_M}/cdrom/CDAccess.cpp
+    ${_PSX_M}/cdrom/CDAccess_Image.cpp
+    ${_PSX_M}/cdrom/CDAccess_CCD.cpp
+    ${_PSX_M}/cdrom/CDAccess_PBP.cpp
+    ${_PSX_M}/cdrom/audioreader.cpp
+    ${_PSX_M}/cdrom/misc.cpp
+    ${_PSX_M}/cdrom/cdromif.cpp
+    # Libretro frontend bridge
+    ${_PSX}/libretro.cpp
     ${_PSX}/input.cpp
-    # HW renderer backend.
+    ${_PSX}/rsx/rsx_intf.cpp
     ${_PSX}/rsx/rsx_lib_gl.cpp
 )
 
 set(_PSX_C
-    # Unity C TU — pulls in mednafen/tremor/*, libretro-common/*,
-    # libkirk/*, mednafen/cdrom/*.
-    ${_PSX}/beetle_psx_griffin_c.c
-    # GLES3 sym loader (HAVE_OPENGL=1 + GLES3=1 path).
-    ${_PSX_LR}/glsym/glsym_es3.c
-    # Globals outside griffin (scrc32.c is pulled in via griffin_c.c).
+    # PSX core C bits (scrc32.c was removed upstream — header-only now).
+    ${_PSX}/libretro_cbs.c
     ${_PSX}/beetle_psx_globals.c
+    # Mednafen settings + state machine (renamed from .cpp upstream)
+    ${_PSX_M}/settings.c
+    ${_PSX_M}/state.c
+    # CD-ROM C bits
+    ${_PSX_M}/cdrom/CDUtility.c
+    ${_PSX_M}/cdrom/galois.c
+    ${_PSX_M}/cdrom/l-ec.c
+    ${_PSX_M}/cdrom/lec.c
+    ${_PSX_M}/cdrom/recover-raw.c
+    ${_PSX_M}/cdrom/edc_crc32.c
+    # Tremor (vorbis decoder for CD-DA tracks)
+    ${_PSX_M}/tremor/bitwise.c
+    ${_PSX_M}/tremor/block.c
+    ${_PSX_M}/tremor/codebook.c
+    ${_PSX_M}/tremor/floor0.c
+    ${_PSX_M}/tremor/floor1.c
+    ${_PSX_M}/tremor/framing.c
+    ${_PSX_M}/tremor/info.c
+    ${_PSX_M}/tremor/mapping0.c
+    ${_PSX_M}/tremor/mdct.c
+    ${_PSX_M}/tremor/registry.c
+    ${_PSX_M}/tremor/res012.c
+    ${_PSX_M}/tremor/sharedbook.c
+    ${_PSX_M}/tremor/synthesis.c
+    ${_PSX_M}/tremor/vorbisfile.c
+    ${_PSX_M}/tremor/window.c
+    # PGXP (precision geometry transform pipeline)
+    ${_PSX}/pgxp/pgxp_cpu.c
+    ${_PSX}/pgxp/pgxp_main.c
+    ${_PSX}/pgxp/pgxp_mem.c
+    ${_PSX}/pgxp/pgxp_gte.c
+    ${_PSX}/pgxp/pgxp_gpu.c
+    ${_PSX}/pgxp/pgxp_value.c
+    ${_PSX}/pgxp/pgxp_debug.c
+    # Libkirk (PSP/PBP cipher used by .pbp loader)
+    ${_PSX_DP}/libkirk/aes.c
+    ${_PSX_DP}/libkirk/amctrl.c
+    ${_PSX_DP}/libkirk/bn.c
+    ${_PSX_DP}/libkirk/des.c
+    ${_PSX_DP}/libkirk/ec.c
+    ${_PSX_DP}/libkirk/kirk_engine.c
+    ${_PSX_DP}/libkirk/sha1.c
+    # Shared glsm shim stubs (desktop-GL extension stand-ins).
+    # Same file used by parallel_n64.cmake.
+    ${CMAKE_CURRENT_LIST_DIR}/libretro_glsm_stubs.c
+    # libretro-common (skip glsym_es3.c — our shim bypasses rglgen
+    # and resolves directly against Switch Mesa's GLES3 symbols).
+    ${_PSX_LR}/glsm/glsm.c
+    ${_PSX_LR}/streams/file_stream.c
+    ${_PSX_LR}/rthreads/rthreads.c
+    ${_PSX_LR}/string/stdstring.c
+    ${_PSX_LR}/encodings/encoding_utf.c
+    ${_PSX_LR}/file/file_path.c
+    ${_PSX_LR}/compat/compat_strl.c
+    ${_PSX_LR}/compat/compat_posix_string.c
+    ${_PSX_LR}/compat/compat_strcasestr.c
+    ${_PSX_LR}/compat/fopen_utf8.c
+    ${_PSX_LR}/compat/compat_snprintf.c
+    ${_PSX_LR}/vfs/vfs_implementation.c
+    ${_PSX_LR}/memmap/memalign.c
+    # SHA-1 used by libretro.cpp for disc-id reporting.
+    ${_PSX_LR}/hash/rhash.c
+    # Bundled libretro-common is older than parallel-n64's — also
+    # missing file_path_io / retro_dirent / time/rtime /
+    # features_cpu / encoding_crc32. Add them only if a TU
+    # references them at link time.
 )
 
 add_library(core_mednafen_psx_hw STATIC ${_PSX_CXX} ${_PSX_C})
 target_include_directories(core_mednafen_psx_hw PUBLIC
+    # Shared glsm shim FIRST so glsm.c's `#include <glsym/glsym.h>`
+    # resolves to our pass-through shim (Switch GLES3 headers
+    # directly) instead of the bundled rglgen-based dispatcher.
+    # Same shim used by parallel_n64.cmake.
+    ${CMAKE_CURRENT_LIST_DIR}/libretro_glsm_shims
     ${_PSX}
     ${_PSX_M}
     ${_PSX_M}/include
@@ -85,10 +175,6 @@ target_include_directories(core_mednafen_psx_hw PUBLIC
     ${_PSX_E}
     ${_PSX_LR}/include
     ${_PSX_DP}/libkirk
-    # Switch portlibs ship the GLES3 headers but the path isn't on
-    # the default search list when we don't link against the libs
-    # directly from this target. Add it so #include <GLES3/gl3.h>
-    # from libretro-common's glsym path resolves.
     $ENV{DEVKITPRO}/portlibs/switch/include
 )
 target_compile_definitions(core_mednafen_psx_hw PRIVATE
@@ -100,12 +186,9 @@ target_compile_definitions(core_mednafen_psx_hw PRIVATE
     HAVE_STDINT_H=1
     INLINE=inline
     FRONTEND_SUPPORTS_RGB565=1
-    # Unity build + HW renderer + GLES3.
-    HAVE_GRIFFIN=1
     HAVE_OPENGL=1
     HAVE_OPENGLES=1
     HAVE_OPENGLES3=1
-    # Mednafen feature flags pulled from Makefile.common defaults.
     HAVE_PBP=1
     NEED_CD=1
     NEED_CRC32=1

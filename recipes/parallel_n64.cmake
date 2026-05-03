@@ -196,8 +196,9 @@ set(_PN64_C
     ${_PN64_CC}/file/config_file_userdata.c
     # Stubs for desktop-GL extensions that glsm.c references but
     # Switch Mesa doesn't expose — calls are gated by extension
-    # detection so they never fire at runtime.
-    ${CMAKE_CURRENT_LIST_DIR}/parallel_n64_glstubs.c
+    # detection so they never fire at runtime. Shared with the
+    # mednafen_psx_hw recipe.
+    ${CMAKE_CURRENT_LIST_DIR}/libretro_glsm_stubs.c
     # extern-inline definitions for safe_rdram.h's helpers (C99
     # inline doesn't auto-emit external bodies — see file header).
     ${CMAKE_CURRENT_LIST_DIR}/parallel_n64_safe_rdram.c
@@ -205,10 +206,11 @@ set(_PN64_C
 
 add_library(core_parallel_n64 STATIC ${_PN64_CXX} ${_PN64_C})
 target_include_directories(core_parallel_n64 PUBLIC
-    # Foyer's glsym shim wins over both libretro-common copies — it
-    # forwards `glsym/glsym.h` directly to Switch Mesa's GLES3 headers
-    # rather than going through rglgen's function-pointer indirection.
-    ${CMAKE_CURRENT_LIST_DIR}/parallel_n64_shims
+    # Foyer's shared glsm shim wins over both libretro-common copies
+    # — it forwards `glsym/glsym.h` directly to Switch Mesa's GLES3
+    # headers rather than going through rglgen's function-pointer
+    # indirection. Also supplies a malloc-backed sys/mman.h.
+    ${CMAKE_CURRENT_LIST_DIR}/libretro_glsm_shims
     # Fresh upstream libretro-common second — supplies the newer
     # time/file/stream prototypes the bundled copy is missing.
     ${_PN64_CC}/include

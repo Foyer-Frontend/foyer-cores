@@ -69,6 +69,7 @@ jobs:
           - sameboy
           - gpsp
           - parallel_n64
+          - mednafen_psx_hw
           # mesen + sameboy temporarily off the matrix — both need
           # generated assets / vendored deps that the recipes don't
           # handle yet (mesen: HQX/xBRZ scalers + SevenZip; sameboy:
@@ -143,21 +144,34 @@ jobs:
           cp artifacts/*.nro out/
           ( cd out && sha256sum *.nro > sha256sums.txt )
 
-          version="${GITHUB_REF_NAME#v}"
+          # Per-core version = first 7 chars of the nro's sha256.
+          # Stable across releases when the binary is byte-identical;
+          # changes the moment the recipe (or its upstream) produces
+          # a different blob. Foyer writes this string into the
+          # `<nro>.version` sidecar at install time and compares it
+          # against the manifest on update checks — so users only see
+          # an "update available" prompt for cores whose binary
+          # actually changed since their last install.
+          #
+          # The top-level `version` is still the release tag; foyer
+          # uses it for catalogue display ("Manifest 0.2.9 - 25 cores
+          # available").
+          release_tag="${GITHUB_REF_NAME#v}"
           {
             echo '{'
-            echo "  \"version\": \"${version}\","
+            echo "  \"version\": \"${release_tag}\","
             echo '  "cores": ['
             first=1
             for nro in $(ls out/foyer-*.nro | sort); do
               name=$(basename "$nro" .nro | sed 's/^foyer-//')
               size=$(stat -c%s "$nro")
               sum=$(sha256sum "$nro" | cut -d' ' -f1)
+              core_version=$(echo "$sum" | cut -c1-7)
               url="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/$(basename $nro)"
               [ $first -eq 0 ] && echo ','
               first=0
               printf '    { "name": "%s", "version": "%s", "nro": "%s", "size": %d, "sha256": "%s", "url": "%s" }' \
-                "$name" "$version" "$(basename $nro)" "$size" "$sum" "$url"
+                "$name" "$core_version" "$(basename $nro)" "$size" "$sum" "$url"
             done
             echo
             echo '  ]'
