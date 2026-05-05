@@ -134,16 +134,18 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
-# 2) Lua's -DLUA_C89_NUMBERS in PLATCFLAGS is defined empty by tico,
-#    which clashes with luaconf.h's later #define LUA_C89_NUMBERS 0 —
-#    triggers a "redefined" warning and then the empty value
-#    cascades into a syntax error in the LUA_INT_TYPE selector.
-#    Force =1 so the C89/long path is taken explicitly.
+# 2) Lua's `-DLUA_C89_NUMBERS` in tico's PLATCFLAGS is set empty
+#    AND luaconf.h unconditionally re-defines LUA_C89_NUMBERS based
+#    on whether LUA_USE_C89 is defined. So passing LUA_C89_NUMBERS
+#    on the command line (with any value) is a no-op — the file
+#    overwrites it. Switch to defining LUA_USE_C89, which makes
+#    luaconf.h pick the C89_NUMBERS=1 branch and route to the
+#    INT_LONG type (long is 64-bit on aarch64 so this is fine).
 set(_PSP_MK ${_PSP}/libretro/Makefile)
 file(READ ${_PSP_MK} _t)
 string(REPLACE
     "-DLUA_C89_NUMBERS"
-    "-DLUA_C89_NUMBERS=1"
+    "-DLUA_USE_C89"
     _t "${_t}")
 file(WRITE ${_PSP_MK} "${_t}")
 
