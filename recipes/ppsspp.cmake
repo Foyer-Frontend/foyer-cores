@@ -183,7 +183,25 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
-# 5) aemu_postoffice/client/sock_impl.h gates <netinet/in.h> behind
+# 5) LibretroSoftwareContext::SwapBuffers immediately dereferences
+#    PPSSPP's global `gpuDebug` pointer. On Switch, retro_run fires
+#    its first frame (and therefore the first SwapBuffers) before
+#    PSP_Init / GPU_Init have finished wiring up the SoftGPU
+#    backend — gpuDebug is still nullptr, the call data-aborts at
+#    address 0 and atmosphère writes a crash report
+#    (foyer-ppsspp + 0x1161e8 = LibretroGraphicsContext.h:79).
+#    Add a guard so early swaps fall through silently until the GPU
+#    is ready. Once gpuDebug is non-null the original body runs as
+#    written.
+set(_PSP_LRGC ${_PSP}/libretro/LibretroGraphicsContext.h)
+file(READ ${_PSP_LRGC} _t)
+string(REPLACE
+    "void SwapBuffers() override {\n\t\tGPUDebugBuffer buf;\n\t\tu16 w = NATIVEWIDTH;"
+    "void SwapBuffers() override {\n\t\tif (!gpuDebug) return; // foyer: GPU not yet up\n\t\tGPUDebugBuffer buf;\n\t\tu16 w = NATIVEWIDTH;"
+    _t "${_t}")
+file(WRITE ${_PSP_LRGC} "${_t}")
+
+# 6) aemu_postoffice/client/sock_impl.h gates <netinet/in.h> behind
 #    `__unix || __APPLE__ || __PSP__`. Switch (`__SWITCH__`) isn't
 #    on the list, so struct sockaddr_in / _in6 stay incomplete and
 #    postoffice.c fails to compile its sizeof(...) sites. Add Switch
