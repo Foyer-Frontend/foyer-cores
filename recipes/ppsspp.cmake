@@ -134,6 +134,19 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
+# 2) Lua's -DLUA_C89_NUMBERS in PLATCFLAGS is defined empty by tico,
+#    which clashes with luaconf.h's later #define LUA_C89_NUMBERS 0 —
+#    triggers a "redefined" warning and then the empty value
+#    cascades into a syntax error in the LUA_INT_TYPE selector.
+#    Force =1 so the C89/long path is taken explicitly.
+set(_PSP_MK ${_PSP}/libretro/Makefile)
+file(READ ${_PSP_MK} _t)
+string(REPLACE
+    "-DLUA_C89_NUMBERS"
+    "-DLUA_C89_NUMBERS=1"
+    _t "${_t}")
+file(WRITE ${_PSP_MK} "${_t}")
+
 # ---------------------------------------------------------------------------
 # Drive `make platform=libnx` to produce ppsspp_libretro_libnx.a.
 # We use a custom command tied to a custom target rather than
