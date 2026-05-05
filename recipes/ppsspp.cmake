@@ -162,6 +162,19 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
+# 4) aemu_postoffice/client/sock_impl.h gates <netinet/in.h> behind
+#    `__unix || __APPLE__ || __PSP__`. Switch (`__SWITCH__`) isn't
+#    on the list, so struct sockaddr_in / _in6 stay incomplete and
+#    postoffice.c fails to compile its sizeof(...) sites. Add Switch
+#    to the unix branch — devkitPro's newlib provides the headers.
+set(_PSP_SOCK_IMPL ${_PSP}/ext/aemu_postoffice/client/sock_impl.h)
+file(READ ${_PSP_SOCK_IMPL} _t)
+string(REPLACE
+    "#if defined(__unix) || defined(__APPLE__) || defined(__PSP__)"
+    "#if defined(__unix) || defined(__APPLE__) || defined(__PSP__) || defined(__SWITCH__)"
+    _t "${_t}")
+file(WRITE ${_PSP_SOCK_IMPL} "${_t}")
+
 # ---------------------------------------------------------------------------
 # Drive `make platform=libnx` to produce ppsspp_libretro_libnx.a.
 # We use a custom command tied to a custom target rather than
@@ -203,6 +216,19 @@ add_custom_target(ppsspp_libretro_a_target
 add_library(ppsspp_glad STATIC
     ${_PSP}/dep/glad/src/glad.c
 )
+
+# ---------------------------------------------------------------------------
+# VR stubs — Common/VR/*.cpp is excluded from the libretro .a (their
+# OpenXR dep doesn't ship on Switch), but other PPSSPP TUs still
+# call into IsVREnabled() and friends. Compile a small stubs TU that
+# returns false / no-op for every entry so the linker is happy and
+# the runtime VR path is dead-code.
+# ---------------------------------------------------------------------------
+add_library(ppsspp_vr_stubs STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/ppsspp_vr_stubs.cpp
+)
+target_compile_features(ppsspp_vr_stubs PRIVATE cxx_std_17)
+set_target_properties(ppsspp_vr_stubs PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(ppsspp_glad PUBLIC
     ${_PSP}/dep/glad/include
     ${_PSP}/tico/glad
@@ -234,14 +260,21 @@ endforeach()
 # ---------------------------------------------------------------------------
 add_library(core_ppsspp INTERFACE)
 add_dependencies(core_ppsspp ppsspp_libretro_a_target)
+# Order matters for GNU ld: ppsspp.a first; ffmpeg static libs
+# pulled in for codec/format symbols; glad for the GL loader; VR
+# stubs to satisfy IsVREnabled() etc. references in the main lib;
+# ZLIB::ZLIB (devkitPro switch-zlib) provides deflate / inflate /
+# uncompress used by libpng17, libzip, and ffmpeg/id3v2.
 target_link_libraries(core_ppsspp INTERFACE
     ${_PSP_LIBA}
+    ppsspp_vr_stubs
     ppsspp_ffmpeg_avformat
     ppsspp_ffmpeg_avcodec
     ppsspp_ffmpeg_swresample
     ppsspp_ffmpeg_swscale
     ppsspp_ffmpeg_avutil
     ppsspp_glad
+    ZLIB::ZLIB
 )
 target_compile_definitions(core_ppsspp INTERFACE
     HAVE_PPSSPP=1
