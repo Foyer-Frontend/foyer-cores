@@ -149,6 +149,43 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK} "${_t}")
 
+# 2b) Force the GLES2 backend on libnx instead of the desktop-OpenGL
+#     one tico's Makefile builds by default. The tail of Makefile has
+#       ifeq ($(GLES), 1)
+#         GLFLAGS += -DGLES -DUSING_GLES2
+#       else
+#         GLFLAGS += -DHAVE_OPENGL
+#       endif
+#     and the libnx block doesn't set GLES, so PPSSPP picks
+#     `RETRO_HW_CONTEXT_OPENGL` and our HwContext (GLES3-only) rejects
+#     it — pushing PPSSPP into SoftGPU which is unusably slow + has
+#     game-specific bugs. Pin GLES=1 inside the libnx block so the
+#     well-tested mobile GLES2 backend gets compiled instead. PPSSPP
+#     then asks for `RETRO_HW_CONTEXT_OPENGLES2` which our existing
+#     EGL/GLES3 context already accepts.
+#
+#     Gated on a marker so we only wipe stale .o files the FIRST time
+#     this patch lands — re-running cmake afterwards is a no-op.
+set(_PSP_GLES_MARKER ${_PSP}/.foyer-gles2-patched)
+if (NOT EXISTS ${_PSP_GLES_MARKER})
+    message(STATUS "ppsspp: switching libnx build to GLES2 (one-time rebuild)")
+    file(READ ${_PSP_MK} _t)
+    string(REPLACE
+        "TARGET := $(TARGET_NAME)_libretro_$(platform).a"
+        "TARGET := $(TARGET_NAME)_libretro_$(platform).a\n   GLES = 1"
+        _t "${_t}")
+    file(WRITE ${_PSP_MK} "${_t}")
+    # Compiler flags can't drift between objects — purge anything stale
+    # and let make re-build every TU under the new flags. .a too, so
+    # the link step re-runs.
+    file(GLOB_RECURSE _PSP_STALE_OBJS ${_PSP}/*.o)
+    if (_PSP_STALE_OBJS)
+        file(REMOVE ${_PSP_STALE_OBJS})
+    endif()
+    file(REMOVE ${_PSP}/libretro/ppsspp_libretro_libnx.a)
+    file(WRITE ${_PSP_GLES_MARKER} "ok\n")
+endif()
+
 # 3) cpu_features/src/hwcaps.c: detects platform via per-OS branches
 #    and #errors when none match. libnx isn't on the list, so the
 #    file fails to compile. Drop it from SOURCES_C — the per-arch
