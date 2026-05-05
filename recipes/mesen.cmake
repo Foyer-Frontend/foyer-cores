@@ -15,6 +15,25 @@ FetchContent_MakeAvailable(libretro_mesen)
 
 set(_M ${libretro_mesen_SOURCE_DIR})
 
+# HD-packs default-to-disabled. atmosphère report 01778012390 caught
+# Mesen data-aborting at HdPackLoader::ProcessPatchTag:297 — `_data`
+# was nullptr when the patch tag tried to write into PatchesByHash
+# (offset 0xc0 from null). Mesen's libretro core options set
+# `mesen_hdpacks` to "enabled" by default (libretro_core_options.h:330);
+# without an HD pack on disk for the rom the loader still walks the
+# init path and dies. Flipping the default to "disabled" stops the
+# crash for every user who never opted into HD packs in the first place.
+# Users who DO want them can override via /foyer/config/cores/mesen.jsonc.
+set(_MESEN_OPTS ${_M}/Libretro/libretro_core_options.h)
+if (EXISTS ${_MESEN_OPTS})
+    file(READ ${_MESEN_OPTS} _t)
+    string(REPLACE
+        "{ \"enabled\",  NULL },\n         { NULL, NULL },\n      },\n      \"enabled\"\n   },\n   {\n      \"mesen_screenrotation\""
+        "{ \"enabled\",  NULL },\n         { NULL, NULL },\n      },\n      \"disabled\"\n   },\n   {\n      \"mesen_screenrotation\""
+        _t "${_t}")
+    file(WRITE ${_MESEN_OPTS} "${_t}")
+endif()
+
 # Top-level Core/ + Utilities/ .cpp files PLUS the scaler sub-dirs
 # (HQX, xBRZ, Scale2x, KreedSaiEagle) and the LZMA SDK at SevenZip/
 # (which lives at the repo root, not under Utilities/). Lua is the only

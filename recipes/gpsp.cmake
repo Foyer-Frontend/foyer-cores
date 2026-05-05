@@ -28,12 +28,12 @@ set(_GPSP_C
     ${_GPSP}/serial_proto.c
     ${_GPSP}/libretro/libretro.c
     ${_GPSP}/gba_cc_lut.c
-    # arm64 dynarec — uses arm/arm64_{emit,codegen}.h + arm64_stub.S.
-    # The translation caches are allocated at runtime in the Switch
-    # JIT shim (gpsp_jit_switch.c) via libnx's Jit API since Switch
-    # homebrew can't directly mmap PROT_EXEC pages.
-    ${_GPSP}/cpu_threaded.c
-    ${CMAKE_CURRENT_LIST_DIR}/gpsp_jit_switch.c
+    # cpu_threaded.c, arm64_stub.S and gpsp_jit_switch.c removed —
+    # the dynarec path is currently unsafe on Switch (the JIT shim
+    # hands out the rw_addr alias which isn't executable, branches
+    # into freshly-emitted blocks trap with a wild PC). Interpreter
+    # path in cpu.cc covers correctness; revisit once the JIT shim
+    # patches gpsp's emitter to use the rx_addr alias for branches.
     ${_GPSP_CC}/compat/compat_posix_string.c
     ${_GPSP_CC}/compat/compat_strl.c
     ${_GPSP_CC}/compat/fopen_utf8.c
@@ -53,7 +53,7 @@ set(_GPSP_CXX
 # preprocessor, which is what gpsp's Makefile does.
 set(_GPSP_ASM
     ${_GPSP}/bios_data.S
-    ${_GPSP}/arm/arm64_stub.S    # dynarec hooks (a64_update_gba etc.)
+    # arm64_stub.S removed alongside the dynarec — see SOURCES note.
 )
 
 # .S files want the C preprocessor + assembler. CMake's ASM language
@@ -78,13 +78,21 @@ target_compile_definitions(core_gpsp PRIVATE
     HAVE_INTTYPES_H=1
     INLINE=inline
     NDEBUG=1
-    # ARM64 dynarec — emitter at arm/arm64_emit.h is selected via
-    # ARM64_ARCH. MMAP_JIT_CACHE makes cpu.h declare the translation
-    # caches as runtime-allocated pointers (set in gpsp_jit_switch.c
-    # using libnx's Jit API) instead of fixed-size arrays.
-    HAVE_DYNAREC=1
-    ARM64_ARCH=1
-    MMAP_JIT_CACHE=1
+    # Dynarec disabled. gpsp_jit_switch.c hands out the writable
+    # alias of the libnx Jit dual-view (rw_addr) for both emit-time
+    # writes AND runtime branches. Switch homebrew can't execute
+    # writable pages, so the first branch into a freshly-emitted
+    # block traps with a wild PC — atmosphère report 01778012016
+    # caught exactly that. The proper fix is patching the gpsp
+    # emitter to call gpsp_jit_translate_to_rx() before branching
+    # (or swapping the cache to rx_addr at run-time); until that's
+    # done, fall back to the interpreter so the core *runs*. GBA
+    # interpreter on Switch is slower than dynarec but still well
+    # above 60 fps for most titles.
+    #
+    # HAVE_DYNAREC + ARM64_ARCH + MMAP_JIT_CACHE intentionally
+    # omitted; gpsp's cpu.c picks the C interpreter when none of
+    # them are defined.
     FRONTEND_SUPPORTS_RGB565=1
 )
 target_compile_options(core_gpsp PRIVATE -w -fno-strict-aliasing)
