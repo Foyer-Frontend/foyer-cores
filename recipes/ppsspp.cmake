@@ -79,7 +79,8 @@ if (NOT EXISTS ${_PSP_SUBMOD_GUARD})
         ext/cpu_features  ext/libchdr       ext/lua
         ext/zstd          ext/rcheevos      ext/freetype
         ext/naett         ext/nanosvg       ext/aemu_postoffice
-        ext/miniupnp      libretro/libretro-common)
+        ext/miniupnp      ext/rapidjson
+        libretro/libretro-common)
     message(STATUS "ppsspp: cloning required submodules (one-time, full depth)")
     execute_process(
         COMMAND git submodule update --init -- ${_PSP_SUBMODS}
