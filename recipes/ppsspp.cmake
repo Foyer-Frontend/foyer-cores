@@ -162,7 +162,28 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
-# 4) aemu_postoffice/client/sock_impl.h gates <netinet/in.h> behind
+# 4) tico's Makefile.common compiles the rcheevos rc_client API but
+#    *without* RC_CLIENT_SUPPORTS_HASH, which is the macro that gates
+#    rc_client_begin_identify_and_load_game(). foyer's shared
+#    cheevos.cpp uses that entry point (we let rcheevos hash the rom
+#    for us instead of reimplementing per-system hashing). Define the
+#    macro and pull in the rhash sources required to satisfy it.
+#
+#    The added rhash files only depend on rc_compat / standard headers
+#    on Switch (they don't pull in libchdr or zlib at compile time),
+#    so the existing include flags are sufficient.
+file(READ ${_PSP_MK_COMMON} _t)
+string(REPLACE
+    "COREFLAGS += -DRC_DISABLE_LUA"
+    "COREFLAGS += -DRC_DISABLE_LUA -DRC_CLIENT_SUPPORTS_HASH=1"
+    _t "${_t}")
+string(REPLACE
+    "$(EXTDIR)/rcheevos/src/rhash/md5.c"
+    "$(EXTDIR)/rcheevos/src/rhash/md5.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/hash.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/hash_disc.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/hash_encrypted.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/hash_rom.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/hash_zip.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/cdreader.c \\\n\t$(EXTDIR)/rcheevos/src/rhash/aes.c"
+    _t "${_t}")
+file(WRITE ${_PSP_MK_COMMON} "${_t}")
+
+# 5) aemu_postoffice/client/sock_impl.h gates <netinet/in.h> behind
 #    `__unix || __APPLE__ || __PSP__`. Switch (`__SWITCH__`) isn't
 #    on the list, so struct sockaddr_in / _in6 stay incomplete and
 #    postoffice.c fails to compile its sizeof(...) sites. Add Switch
@@ -248,6 +269,12 @@ foreach(_lib avcodec avformat avutil swresample swscale)
         IMPORTED_LOCATION ${_PSP_FF}/switch_build/lib/lib${_lib}.a)
 endforeach()
 
+# tico-ppsspp's libretro Makefile compiles ext/rcheevos into the
+# libretro .a directly. Tell foyer's player CMakeLists to skip its own
+# rcheevos static lib (which would collide on the rc_client_* symbols)
+# and just propagate the headers via rcheevos_headers.
+set(FOYER_CORE_EMBEDS_RCHEEVOS TRUE)
+
 # ---------------------------------------------------------------------------
 # core_ppsspp — INTERFACE wrapper. The foyer player binary's
 # target_link_libraries(... core_ppsspp) drags in all of the above in
@@ -260,12 +287,24 @@ endforeach()
 # ---------------------------------------------------------------------------
 add_library(core_ppsspp INTERFACE)
 add_dependencies(core_ppsspp ppsspp_libretro_a_target)
-# Order matters for GNU ld: ppsspp.a first; ffmpeg static libs
-# pulled in for codec/format symbols; glad for the GL loader; VR
-# stubs to satisfy IsVREnabled() etc. references in the main lib;
-# ZLIB::ZLIB (devkitPro switch-zlib) provides deflate / inflate /
-# uncompress used by libpng17, libzip, and ffmpeg/id3v2.
+# Order matters for GNU ld: ppsspp.a / ffmpeg / vr-stubs / glad have
+# circular cross-references (libpng calls into zlib's deflate, ffmpeg
+# calls into zlib's uncompress, etc.). Wrap the lot in
+# --start-group / --end-group so ld iterates until every symbol is
+# resolved instead of giving up on the first pass.
+# NOTE about zlib: foyer_shared already publicly links ZLIB::ZLIB, so by
+# the time CMake builds the player binary's link line, libz.a has been
+# emitted *before* --start-group. CMake then de-dupes any second
+# occurrence (whether `ZLIB::ZLIB` or the absolute path), which means
+# the group itself sees no libz.a — leaving libpng17/libzip/SymbolMap/
+# id3v2 unresolved (deflate/gzopen/uncompress).
+#
+# Forcing `-lz` (a different *string token* from the absolute path
+# CMake emitted earlier) sidesteps the dedupe and lands a second copy
+# of libz.a *inside* the group, where it can satisfy the cross-archive
+# references. The dedup pass compares strings, not search results.
 target_link_libraries(core_ppsspp INTERFACE
+    -Wl,--start-group
     ${_PSP_LIBA}
     ppsspp_vr_stubs
     ppsspp_ffmpeg_avformat
@@ -274,7 +313,8 @@ target_link_libraries(core_ppsspp INTERFACE
     ppsspp_ffmpeg_swscale
     ppsspp_ffmpeg_avutil
     ppsspp_glad
-    ZLIB::ZLIB
+    -lz
+    -Wl,--end-group
 )
 target_compile_definitions(core_ppsspp INTERFACE
     HAVE_PPSSPP=1

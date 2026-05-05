@@ -41,14 +41,23 @@ file(GLOB _RC_SRC
 
 add_library(rcheevos STATIC ${_RC_SRC})
 
-target_include_directories(rcheevos PUBLIC
+# rcheevos_headers — INTERFACE lib that exposes only the include paths +
+# the public RC_CLIENT_SUPPORTS_HASH define. Cores that embed their own
+# copy of rcheevos in their static .a (e.g. PPSSPP) link against this
+# *instead of* `rcheevos` to avoid duplicate-symbol errors. The shared
+# frontend code in shared/libretro/cheevos.cpp compiles against the same
+# rc_client API either way.
+add_library(rcheevos_headers INTERFACE)
+target_include_directories(rcheevos_headers INTERFACE
     ${_RC_DIR}/include
     ${_RC_DIR}/src
     ${CMAKE_SOURCE_DIR}/shared/libretro)   # for libretro.h vendored in foyer
+target_compile_definitions(rcheevos_headers INTERFACE
+    RC_CLIENT_SUPPORTS_HASH=1)
+
+target_link_libraries(rcheevos PUBLIC rcheevos_headers)
 
 target_compile_options(rcheevos PRIVATE -w)
-target_compile_definitions(rcheevos PUBLIC
-    RC_CLIENT_SUPPORTS_HASH=1)  # enable rc_client_begin_identify_and_load_game
 target_compile_definitions(rcheevos PRIVATE
     RC_DISABLE_LUA=1            # we don't use Lua-based test cases
     RC_NO_STD_THREAD=1)         # Switch threading goes through libnx
