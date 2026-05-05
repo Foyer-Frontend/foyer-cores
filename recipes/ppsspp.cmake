@@ -276,6 +276,27 @@ endforeach()
 set(FOYER_CORE_EMBEDS_RCHEEVOS TRUE)
 
 # ---------------------------------------------------------------------------
+# PPSSPP needs its `assets/` tree at the libretro system directory at
+# runtime — `ppge_atlas.zim`, the `flash0/` PSP fonts, every `lang/`
+# .ini, `compat.ini`, `gamecontrollerdb.txt`, etc. tico's libretro
+# init reads `<system_dir>/compat.ini` first and warns "Core system
+# files missing, expect bugs" when it isn't found, then crashes
+# downstream when the missing assets are actually accessed (see
+# `[SCEGE] Failed to load ppge_atlas.zim`).
+#
+# Stage the assets into the player's romfs source dir so
+# dkp_add_asset_target bakes them into foyer-ppsspp.nro. The player's
+# main.cpp seeds them onto SD at /foyer/system/ppsspp/ on first boot
+# and points the libretro system_directory there.
+# ---------------------------------------------------------------------------
+set(_PSP_ROMFS_DST ${CMAKE_CURRENT_BINARY_DIR}/romfs/ppsspp_assets)
+file(MAKE_DIRECTORY ${_PSP_ROMFS_DST})
+# Trailing `/.` copies the *contents* of assets/, not the assets/ dir
+# itself, so the romfs layout is romfs:/ppsspp_assets/<file> rather
+# than romfs:/ppsspp_assets/assets/<file>.
+file(COPY ${_PSP}/assets/. DESTINATION ${_PSP_ROMFS_DST})
+
+# ---------------------------------------------------------------------------
 # core_ppsspp — INTERFACE wrapper. The foyer player binary's
 # target_link_libraries(... core_ppsspp) drags in all of the above in
 # the right order.
