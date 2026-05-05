@@ -149,6 +149,19 @@ string(REPLACE
     _t "${_t}")
 file(WRITE ${_PSP_MK} "${_t}")
 
+# 3) cpu_features/src/hwcaps.c: detects platform via per-OS branches
+#    and #errors when none match. libnx isn't on the list, so the
+#    file fails to compile. Drop it from SOURCES_C — the per-arch
+#    impl_*_linux.c files compile to empty TUs on Switch (their
+#    contents are gated behind CPU_FEATURES_OS_LINUX_OR_ANDROID),
+#    so excluding hwcaps.c is enough on its own.
+file(READ ${_PSP_MK_COMMON} _t)
+string(REPLACE
+    "ifneq ($(PLATFORM_EXT), win32)\nSOURCES_C += \\\n\t$(EXTDIR)/cpu_features/src/hwcaps.c\nendif"
+    "# foyer: hwcaps.c excluded on libnx (no aarch64-libnx support upstream)"
+    _t "${_t}")
+file(WRITE ${_PSP_MK_COMMON} "${_t}")
+
 # ---------------------------------------------------------------------------
 # Drive `make platform=libnx` to produce ppsspp_libretro_libnx.a.
 # We use a custom command tied to a custom target rather than
