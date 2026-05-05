@@ -29,10 +29,17 @@ include(ExternalProject)
 # Sources: tico's PPSSPP fork (with platform=libnx) + the prebuilt
 # Switch FFmpeg static libs.
 # ---------------------------------------------------------------------------
+# Auto-recurse off: tico-ppsspp has 30+ submodules pinned to specific
+# SHAs — many of those SHAs aren't reachable through a shallow clone,
+# so the default `git submodule update --init --recursive` fails on
+# ffmpeg / libretro-common / etc. We init the subset we actually need
+# manually below, with full-depth clones.
 FetchContent_Declare(libretro_ppsspp
-    GIT_REPOSITORY https://github.com/ticohq/tico-ppsspp.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    GIT_REPOSITORY         https://github.com/ticohq/tico-ppsspp.git
+    GIT_TAG                master
+    GIT_SHALLOW            TRUE
+    GIT_SUBMODULES_RECURSE FALSE
+    GIT_SUBMODULES         "")
 
 FetchContent_Declare(libretro_ppsspp_ffmpeg
     GIT_REPOSITORY https://github.com/ticohq/tico-ppsspp-ffmpeg.git
@@ -53,10 +60,36 @@ set(_PSP    ${libretro_ppsspp_SOURCE_DIR})
 set(_PSP_FF ${libretro_ppsspp_ffmpeg_SOURCE_DIR})
 
 # ---------------------------------------------------------------------------
+# Init the submodules the libretro/libnx Makefile actually needs.
+# Full-depth (no `--depth 1`) so the pinned SHAs are always reachable.
+# A guard file keeps re-runs cheap once the initial clone is done.
+# ---------------------------------------------------------------------------
+set(_PSP_SUBMOD_GUARD ${_PSP}/.foyer-submodules-init)
+if (NOT EXISTS ${_PSP_SUBMOD_GUARD})
+    set(_PSP_SUBMODS
+        ext/armips        ext/glslang       ext/SPIRV-Cross
+        ext/cpu_features  ext/libchdr       ext/lua
+        ext/zstd          ext/rcheevos      ext/freetype
+        ext/naett         ext/nanosvg       libretro/libretro-common)
+    message(STATUS "ppsspp: cloning required submodules (one-time, full depth)")
+    execute_process(
+        COMMAND git submodule update --init -- ${_PSP_SUBMODS}
+        WORKING_DIRECTORY ${_PSP}
+        RESULT_VARIABLE _sub_rc)
+    if (NOT _sub_rc EQUAL 0)
+        message(FATAL_ERROR
+            "ppsspp: git submodule update failed (rc=${_sub_rc}). "
+            "Run manually under ${_PSP} to inspect.")
+    endif()
+    file(WRITE ${_PSP_SUBMOD_GUARD} "ok\n")
+endif()
+
+# ---------------------------------------------------------------------------
 # The Makefile expects ffmpeg/ at $(CORE_DIR)/ffmpeg with
 # switch_build/{include,lib} populated. tico's ffmpeg repo IS that
-# layout — symlink it into place. (Re-run safe; failures imply the
-# symlink already exists.)
+# layout — symlink it into place. The auto-cloned submodule reference
+# (if any) gets cleaned out first so we don't fight git over the
+# directory.
 # ---------------------------------------------------------------------------
 if (NOT EXISTS ${_PSP}/ffmpeg/switch_build/lib/libavcodec.a)
     file(REMOVE_RECURSE ${_PSP}/ffmpeg)
@@ -70,6 +103,26 @@ if (NOT EXISTS ${_PSP}/ffmpeg/switch_build/lib/libavcodec.a)
             "produced a complete tico-ppsspp-ffmpeg checkout.")
     endif()
 endif()
+
+# ---------------------------------------------------------------------------
+# Source-list patches against Makefile.common.
+#
+# Idempotent — re-running cmake on an already patched tree is a no-op
+# because the target string isn't present any more.
+# ---------------------------------------------------------------------------
+
+# 1) OpenXR. Common/VR/*.cpp pulls in <openxr/openxr.h> from the
+#    ext/OpenXR-SDK submodule. We don't init that submodule (Switch
+#    has no VR), but Makefile.common adds the VR .cpps to SOURCES_CXX
+#    unconditionally and references them from the include path.
+#    Wholesale-comment-out the VR block.
+set(_PSP_MK_COMMON ${_PSP}/libretro/Makefile.common)
+file(READ ${_PSP_MK_COMMON} _t)
+string(REPLACE
+    "SOURCES_CXX += \\\n\t$(COMMONDIR)/VR/OpenXRLoader.cpp \\\n\t$(COMMONDIR)/VR/PPSSPPVR.cpp \\\n\t$(COMMONDIR)/VR/VRBase.cpp \\\n\t$(COMMONDIR)/VR/VRMath.cpp \\\n\t$(COMMONDIR)/VR/VRFramebuffer.cpp \\\n\t$(COMMONDIR)/VR/VRInput.cpp \\\n\t$(COMMONDIR)/VR/VRRenderer.cpp"
+    "# foyer: VR sources removed on libnx (ext/OpenXR-SDK not vendored)"
+    _t "${_t}")
+file(WRITE ${_PSP_MK_COMMON} "${_t}")
 
 # ---------------------------------------------------------------------------
 # Drive `make platform=libnx` to produce ppsspp_libretro_libnx.a.

@@ -23,8 +23,14 @@ include(FetchContent)
 
 FetchContent_Declare(libretro_psx_hw
     GIT_REPOSITORY https://github.com/libretro/beetle-psx-libretro.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    # Pinned. Upstream HEAD on 2026-05-05 converted Stream /
+    # FileStream / MemoryStream from C++ to C (file rename .cpp ->
+    # .c plus reorganisation of the streams/ subdir) — our
+    # explicit SOURCES_CXX block below still references the old
+    # .cpp paths. Bump this SHA or re-enumerate the source list to
+    # follow upstream when ready.
+    GIT_TAG        ab72423afd428001a76dd5d50e03a7ec18c43c63
+    GIT_SHALLOW    FALSE)
 FetchContent_MakeAvailable(libretro_psx_hw)
 
 set(_PSX     ${libretro_psx_hw_SOURCE_DIR})
