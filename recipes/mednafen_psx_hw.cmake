@@ -29,7 +29,7 @@ FetchContent_Declare(libretro_psx_hw
     # explicit SOURCES_CXX block below still references the old
     # .cpp paths. Bump this SHA or re-enumerate the source list to
     # follow upstream when ready.
-    GIT_TAG        ab72423afd428001a76dd5d50e03a7ec18c43c63
+    GIT_TAG        ab72423afd429c1e96ca56fbd39094a71270842b
     GIT_SHALLOW    FALSE)
 FetchContent_MakeAvailable(libretro_psx_hw)
 
