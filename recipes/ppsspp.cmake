@@ -39,7 +39,15 @@ FetchContent_Declare(libretro_ppsspp
     GIT_TAG                master
     GIT_SHALLOW            TRUE
     GIT_SUBMODULES_RECURSE FALSE
-    GIT_SUBMODULES         "")
+    GIT_SUBMODULES         ""
+    # Once populated, don't re-run git's update step on subsequent
+    # configures. The recipe replaces the auto-populated `ffmpeg/`
+    # submodule reference with a symlink to tico-ppsspp-ffmpeg, and
+    # git's submodule check rejects symlinks where it expects a real
+    # checkout — so a re-update would fail with "expected submodule
+    # path 'ffmpeg' not to be a symbolic link". Re-run cmake from
+    # a clean build dir if you need to force a refresh.
+    UPDATE_DISCONNECTED    TRUE)
 
 FetchContent_Declare(libretro_ppsspp_ffmpeg
     GIT_REPOSITORY https://github.com/ticohq/tico-ppsspp-ffmpeg.git
@@ -70,7 +78,8 @@ if (NOT EXISTS ${_PSP_SUBMOD_GUARD})
         ext/armips        ext/glslang       ext/SPIRV-Cross
         ext/cpu_features  ext/libchdr       ext/lua
         ext/zstd          ext/rcheevos      ext/freetype
-        ext/naett         ext/nanosvg       libretro/libretro-common)
+        ext/naett         ext/nanosvg       ext/aemu_postoffice
+        libretro/libretro-common)
     message(STATUS "ppsspp: cloning required submodules (one-time, full depth)")
     execute_process(
         COMMAND git submodule update --init -- ${_PSP_SUBMODS}
