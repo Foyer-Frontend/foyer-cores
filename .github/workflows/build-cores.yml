@@ -95,6 +95,9 @@ jobs:
           - atari800
           - nxengine
           - opera
+          - mame2003_plus
+          - scummvm
+          - puae
           # mesen + sameboy temporarily off the matrix — both need
           # generated assets / vendored deps that the recipes don't
           # handle yet (mesen: HQX/xBRZ scalers + SevenZip; sameboy:
