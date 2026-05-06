@@ -38,6 +38,14 @@ ProcessorCount(_SCV_NPROC)
 if (NOT _SCV_NPROC GREATER 0)
     set(_SCV_NPROC 4)
 endif()
+# Some TUs (notably graphics/tinygl/ztriangle.cpp + the Director Lingo
+# generated parsers) need >1 GiB of RAM each at -O2/-O3. Capping
+# parallelism avoids the OOM killer on standard CI runners (8 GiB)
+# while still keeping the bulk of the ~8800 small TUs going at full
+# tilt. 4-wide is the sweet spot we measured.
+if (_SCV_NPROC GREATER 4)
+    set(_SCV_NPROC 4)
+endif()
 
 # Re-run upstream's `make platform=libnx` every configure. The
 # Makefile is incremental — it only re-archives when objects changed.
@@ -56,16 +64,39 @@ add_custom_command(
 add_custom_target(scummvm_libretro_a_target
     DEPENDS ${_SCV_LIBA})
 
+# Upstream's libretro Makefile only archives the libretro-common
+# helpers scummvm itself directly references (file_path, hash,
+# stdstring, …) into the .a. file_path.o calls strlcpy_retro__ /
+# strlcat_retro__ via the compat/strl.h macro, but compat_strl.o
+# isn't in the archive. Same shape as what we did for mame: build a
+# tiny shim from the *same* libretro-common tree the .a was compiled
+# against (fetched as a submodule into deps/libretro-common) so the
+# struct layouts and inline declarations match exactly.
+set(_SCV_LRC ${_SCV_LR}/deps/libretro-common)
+add_library(scummvm_lrc STATIC
+    ${_SCV_LRC}/compat/compat_strl.c
+)
+target_include_directories(scummvm_lrc PUBLIC ${_SCV_LRC}/include)
+target_compile_options(scummvm_lrc PRIVATE -w -fno-strict-aliasing)
+set_target_properties(scummvm_lrc PROPERTIES
+    C_STANDARD 99 POSITION_INDEPENDENT_CODE ON)
+# scummvm's libretro Makefile only initialises the deps/libretro-common
+# submodule on the first `make` run. Hard-depend on the .a target so
+# the submodule is guaranteed to exist before scummvm_lrc tries to
+# compile compat_strl.c.
+add_dependencies(scummvm_lrc scummvm_libretro_a_target)
+
 # core_scummvm — INTERFACE wrapper. ScummVM's .a is self-contained
-# (libretro-deps + libretro-common get archived in via libdeps.a +
-# libdetect.a + script.mri merge), but it still references zlib's
-# `inflate`/`deflate` etc. — those resolve from devkitPro's libz
-# (foyer_shared publicly links ZLIB::ZLIB).
+# for the bulk of its internals; we only need to add the compat
+# shim above + zlib (foyer_shared already links ZLIB::ZLIB but its
+# symbols may get de-duped out of the link group; pass `-lz` inside
+# the group as a different string token to keep the second copy).
 add_library(core_scummvm INTERFACE)
 add_dependencies(core_scummvm scummvm_libretro_a_target)
 target_link_libraries(core_scummvm INTERFACE
     -Wl,--start-group
     ${_SCV_LIBA}
+    scummvm_lrc
     -lz
     -Wl,--end-group
 )
