@@ -27,6 +27,24 @@ endif()
 
 set(_SCV     ${libretro_scummvm_SOURCE_DIR})
 set(_SCV_LR  ${_SCV}/backends/platform/libretro)
+
+# Pre-clone libretro-common into deps/ ourselves. ScummVM's Makefile
+# only initialises this submodule on its first `make` run via
+# dependencies.mk's submodule_test, but our scummvm_lrc shim lib
+# below references compat/compat_strl.c at *configure* time — so on a
+# fresh checkout (e.g. CI), the file isn't there yet and the configure
+# fails with `Cannot find source file ... compat_strl.c`. Pinning to
+# the same SHA dependencies.mk uses (DEPS_COMMIT_libretro-common)
+# means scummvm's configure_submodules.sh sees a matching tree and
+# leaves it alone. Bump this when upstream bumps theirs.
+FetchContent_Declare(scummvm_libretro_common
+    GIT_REPOSITORY https://github.com/libretro/libretro-common.git
+    GIT_TAG        70ed90c42ddea828f53dd1b984c6443ddb39dbd6
+    SOURCE_DIR     ${_SCV_LR}/deps/libretro-common)
+FetchContent_GetProperties(scummvm_libretro_common)
+if (NOT scummvm_libretro_common_POPULATED)
+    FetchContent_Populate(scummvm_libretro_common)
+endif()
 # The ar script.mri produces libtemp/scummvm_libretro_libnx.a — but
 # upstream's libnx target writes to that intermediate dir. Final
 # output ends up at $(TARGET) = scummvm_libretro_libnx.a in the
