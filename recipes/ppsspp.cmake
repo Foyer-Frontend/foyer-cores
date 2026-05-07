@@ -1,5 +1,11 @@
 # recipes/ppsspp.cmake — libretro PPSSPP (PSP) on Switch.
 #
+# Note: the player binary's EGL context creation lives in foyer/shared/
+# libretro/video_hw.cpp, not in this recipe. v0.3.1 picks up foyer's
+# EGL_CONTEXT_CLIENT_VERSION 0 -> 2/3 coercion fix that finally lets
+# PPSSPP boot past graphics init (Mesa was rejecting client version 0
+# with EGL_BAD_MATCH).
+#
 # Upstream hrydgard/ppsspp's libretro Makefile has no `platform=libnx`
 # target. ticohq/tico-ppsspp does — it's a fork that added the libnx
 # build path plus a Switch-specific FFmpeg in ticohq/tico-ppsspp-ffmpeg.
