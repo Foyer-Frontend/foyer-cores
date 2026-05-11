@@ -48,6 +48,7 @@ set(_GBC_CXX
 set(_GBC_C
     ${_GBC_LR}/gambatte_log.c
     ${_GBC_LR}/blipper.c
+    ${_GBC_LR}/cc_resampler.c
     ${_GBC_COMM}/compat/compat_posix_string.c
     ${_GBC_COMM}/compat/compat_snprintf.c
     ${_GBC_COMM}/compat/compat_strcasestr.c

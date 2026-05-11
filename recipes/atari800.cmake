@@ -5,8 +5,12 @@ include(FetchContent)
 
 FetchContent_Declare(libretro_atari800
     GIT_REPOSITORY https://github.com/libretro/libretro-atari800.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    # Upstream commit 1851228 ("Update atari800 core from 3.1.0
+    # to 5.2.0") restructured src/ entirely; recipe still tracks
+    # the pre-bump layout. Pin to the commit before that bump
+    # until the recipe gets a full refresh.
+    GIT_TAG        7f3456f16109c34915d0bad7393b6c4df66c3850
+    GIT_SHALLOW    FALSE)
 FetchContent_MakeAvailable(libretro_atari800)
 
 set(_AT     ${libretro_atari800_SOURCE_DIR})

@@ -364,6 +364,13 @@ target_compile_definitions(${_FC_TARGET} PRIVATE
     HAVE_STDLIB_H=1
     HAVE_SYS_PARAM_H=1
 
+    # Flycast vendors stb_image inside core/deps/stb. Borealis
+    # also bakes its own stb_image inside its nanovg copy.
+    # Mark flycast's stb symbols static so the player exe can
+    # link both without duplicate-definition errors.
+    STB_IMAGE_STATIC=1
+    STBI_NO_LINEAR=1
+
     # flycast platform identity (from Makefile platform=libnx block)
     TARGET_LIBNX=1
     TARGET_NO_OPENMP=1

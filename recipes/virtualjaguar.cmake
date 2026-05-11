@@ -58,6 +58,7 @@ add_library(core_virtualjaguar STATIC
     ${_VJ_S}/cd/cdintf.c
     ${_VJ_S}/cd/cdrom.c
     ${_VJ_S}/core/cheat.c
+    ${_VJ_S}/core/crash_detect.c
     ${_VJ_S}/core/crc32.c
     ${_VJ_S}/core/event.c
     ${_VJ_S}/jerry/eeprom.c
