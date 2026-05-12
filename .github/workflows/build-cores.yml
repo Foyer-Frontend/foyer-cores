@@ -1,28 +1,40 @@
 name: Build cores
 
-# Builds every recipe'd libretro core into a foyer-<core>.nro for the Switch
-# and attaches them to a GitHub release. The release also includes a
-# manifest.json that foyer's Settings → Install Cores can read to resolve
-# downloads + sha256s.
-#
-# Triggers on tag push v*.*.*; manual dispatch is supported for dry-runs
-# (no release published unless the ref is a tag).
+# Smart-matrix nightly + on-tag-push. Each matrix job's first step probes the
+# core's upstream (git ls-remote on its branch ref, or literal pin) and
+# compares against the upstream fingerprint recorded in the previous release's
+# manifest.json. Unchanged cores skip Configure/Build/Stage entirely — only
+# the cores that actually moved get rebuilt. The release job then merges the
+# fresh artefacts with carried-over manifest entries from the previous
+# release, so every published manifest lists ALL cores even when only a
+# handful built that day. Foyer's `cores_manifest_url` hits
+# /releases/latest/download/manifest.json and pulls each .nro from whichever
+# release URL the manifest names — unchanged cores' URLs continue pointing at
+# their last-built release.
 
 on:
   push:
     tags:
       # CalVer: YYYY.MM.DD[.N] — N suffix handles same-day rebuilds.
       # Old v*.*.* tags stay matched for backward triggering of any
-      # legacy semver tag we might cut.
+      # legacy semver tag we cherry-pick into the rotation.
       - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]'
       - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*'
       - 'v*.*.*'
+  schedule:
+    # Nightly at 03:00 UTC. Most upstreams are quiet that hour so we won't
+    # race a libretro merge while building.
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       foyer_ref:
         description: 'foyer ref to build against (default: main)'
         default: main
         required: false
+      force_rebuild_all:
+        description: 'Ignore the smart-matrix skip and rebuild every core'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -32,7 +44,52 @@ env:
   FOYER_REPO: foyer-frontend/foyer
 
 jobs:
+  # Resolve the release tag once so matrix + release jobs agree on a single
+  # CalVer string. Tag pushes inherit GITHUB_REF_NAME; schedule + dispatch
+  # compute YYYY.MM.DD, appending .N if a release with that tag already
+  # exists (re-runs same day).
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      prev_manifest_url: ${{ steps.tag.outputs.prev_manifest_url }}
+      force_rebuild: ${{ steps.tag.outputs.force_rebuild }}
+    steps:
+      - name: Compute tag + locate previous manifest
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            base=$(date -u +%Y.%m.%d)
+            tag="$base"
+            i=1
+            while gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; do
+              tag="${base}.${i}"
+              i=$((i+1))
+            done
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "prev_manifest_url=https://github.com/${{ github.repository }}/releases/latest/download/manifest.json" >> "$GITHUB_OUTPUT"
+
+          # Tag pushes force full rebuild — cutting a tag means
+          # "publish a fresh batch of every core". Scheduled +
+          # dispatch runs use the smart-matrix skip path, unless
+          # the dispatch input flips force_rebuild_all on.
+          force=false
+          if [ "${{ github.event_name }}" = "push" ]; then
+            force=true
+          elif [ "${{ github.event.inputs.force_rebuild_all }}" = "true" ]; then
+            force=true
+          fi
+          echo "force_rebuild=$force" >> "$GITHUB_OUTPUT"
+          echo "force_rebuild resolved to $force (event=${{ github.event_name }})"
+
   build:
+    needs: plan
     runs-on: ubuntu-latest
     container:
       # foyer-cores-builder bakes the Switch portlibs on top of
@@ -103,17 +160,84 @@ jobs:
           - mame2003_plus
           - scummvm
           - puae
-          # mesen + sameboy temporarily off the matrix — both need
-          # generated assets / vendored deps that the recipes don't
-          # handle yet (mesen: HQX/xBRZ scalers + SevenZip; sameboy:
-          # bootroms generated from BootROMs/prebuilt/*.bin).
+          # mesen + sameboy need generated assets / vendored deps that the
+          # recipes don't handle yet (mesen: HQX/xBRZ scalers + SevenZip;
+          # sameboy: bootroms generated from BootROMs/prebuilt/*.bin).
     steps:
       - name: Checkout foyer-cores
         uses: actions/checkout@v5
         with:
           path: foyer-cores
 
+      - name: Trust the workspace inside container
+        run: git config --global --add safe.directory '*'
+
+      # Smart-matrix gate. ls-remote each upstream named in the recipe + read
+      # the previous manifest's recorded fingerprint. Outputs should_build=true
+      # whenever upstream moved, the recipe file changed, no previous entry
+      # exists, or the user passed force_rebuild_all. Every downstream step
+      # in this job is gated on that flag — when false, the runner spends
+      # ~5s here and then idles past the rest.
+      - name: Probe upstream + decide skip-vs-build
+        id: gate
+        run: |
+          set -e
+          recipe=foyer-cores/recipes/${{ matrix.core }}.cmake
+          if [ ! -f "$recipe" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "no recipe for ${{ matrix.core }} — skipping"
+            exit 0
+          fi
+
+          new_fp=$(python3 foyer-cores/.github/scripts/upstream_fingerprint.py "$recipe")
+          new_recipe_sha=$(sha1sum "$recipe" | cut -d' ' -f1)
+          echo "new fingerprint: $new_fp"
+          echo "new recipe sha: $new_recipe_sha"
+
+          prev_fp=""
+          prev_recipe_sha=""
+          # jq isn't guaranteed to be installed inside the builder
+          # container, so parse with python3 (which devkitPro's
+          # debian base does ship).
+          if curl -fsSL -o prev_manifest.json "${{ needs.plan.outputs.prev_manifest_url }}"; then
+            read -r prev_fp prev_recipe_sha <<EOF
+$(python3 -c "
+import json
+d = json.load(open('prev_manifest.json'))
+for c in d.get('cores', []):
+    if c.get('name') == '${{ matrix.core }}':
+        print((c.get('upstream_fingerprint') or '_').replace(' ', ''), (c.get('recipe_sha') or '_'))
+        break
+else:
+    print('_ _')
+")
+EOF
+            [ "$prev_fp" = "_" ] && prev_fp=""
+            [ "$prev_recipe_sha" = "_" ] && prev_recipe_sha=""
+          fi
+          echo "prev fingerprint: $prev_fp"
+          echo "prev recipe sha: $prev_recipe_sha"
+
+          should=false
+          if [ "${{ needs.plan.outputs.force_rebuild }}" = "true" ]; then
+            should=true
+            echo "force_rebuild_all dispatch flag set — building"
+          elif [ -z "$prev_fp" ] && [ -z "$prev_recipe_sha" ]; then
+            should=true
+            echo "no prior manifest entry — building"
+          elif [ "$new_fp" != "$prev_fp" ]; then
+            should=true
+            echo "upstream fingerprint changed — building"
+          elif [ "$new_recipe_sha" != "$prev_recipe_sha" ]; then
+            should=true
+            echo "recipe file changed — building"
+          else
+            echo "unchanged — skipping"
+          fi
+          echo "should_build=$should" >> "$GITHUB_OUTPUT"
+
       - name: Checkout foyer
+        if: steps.gate.outputs.should_build == 'true'
         uses: actions/checkout@v5
         with:
           repository: ${{ env.FOYER_REPO }}
@@ -121,14 +245,10 @@ jobs:
           path: foyer
           fetch-depth: 0
 
-      - name: Trust the workspace inside container
-        run: git config --global --add safe.directory '*'
-
-      # (Switch portlibs are pre-installed in the builder image.)
-
       # Direct cmake invocation rather than `cmake --preset` so newly-added
       # cores work without an entry in foyer's CMakePresets.json.
       - name: Configure
+        if: steps.gate.outputs.should_build == 'true'
         env:
           DEVKITPRO: /opt/devkitpro
         working-directory: foyer
@@ -141,6 +261,7 @@ jobs:
               -DFOYER_CORE=${{ matrix.core }}
 
       - name: Build
+        if: steps.gate.outputs.should_build == 'true'
         working-directory: foyer
         run: |
           # Cap parallelism per-core. puae's libretro-uae has huge
@@ -156,79 +277,95 @@ jobs:
           cmake --build build/Player-${{ matrix.core }} -j "$JOBS"
 
       - name: Stage artefact
+        if: steps.gate.outputs.should_build == 'true'
         working-directory: foyer
         run: |
           mkdir -p ../out
           cp build/Player-${{ matrix.core }}/foyer-${{ matrix.core }}.nro ../out/
 
       - name: Upload artefact
+        if: steps.gate.outputs.should_build == 'true'
         uses: actions/upload-artifact@v5
         with:
           name: foyer-${{ matrix.core }}
           path: out/foyer-${{ matrix.core }}.nro
 
   release:
-    needs: build
-    # `always()` so the release publishes whatever cores DID build, even if
-    # one of the matrix jobs failed. fail-fast is already off, so the rest
-    # of the matrix runs to completion regardless. The downloaded artefacts
-    # bundle determines what makes it into manifest.json + the release.
-    if: ${{ always() && startsWith(github.ref, 'refs/tags/') }}
+    needs: [plan, build]
+    # always(): publish whatever DID build even if one of the matrix jobs
+    # failed. fail-fast is off so the rest of the matrix runs regardless.
+    # The artefact bundle + previous manifest determine what makes it in.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artefacts
+      - name: Checkout foyer-cores
+        uses: actions/checkout@v5
+
+      - name: Download fresh artefacts
         uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Generate manifest + checksums
+      - name: Fetch previous manifest
+        run: |
+          # 404 is fine for the first release — script handles missing prev.
+          mkdir -p prev
+          curl -fsSL -o prev/manifest.json \
+            "${{ needs.plan.outputs.prev_manifest_url }}" || echo "no prior manifest"
+
+      - name: Build combined manifest
         run: |
           mkdir -p out
-          cp artifacts/*.nro out/
-          ( cd out && sha256sum *.nro > sha256sums.txt )
+          # Copy freshly built nros into out/ — those get attached to the
+          # release. Inherited entries don't need their nro re-uploaded; the
+          # manifest URL already points at the older release.
+          [ -d artifacts ] && cp -v artifacts/foyer-*.nro out/ 2>/dev/null || true
 
-          # Per-core version = first 7 chars of the nro's sha256.
-          # Stable across releases when the binary is byte-identical;
-          # changes the moment the recipe (or its upstream) produces
-          # a different blob. Foyer writes this string into the
-          # `<nro>.version` sidecar at install time and compares it
-          # against the manifest on update checks — so users only see
-          # an "update available" prompt for cores whose binary
-          # actually changed since their last install.
-          #
-          # The top-level `version` is still the release tag; foyer
-          # uses it for catalogue display ("Manifest 0.2.9 - 25 cores
-          # available").
-          release_tag="${GITHUB_REF_NAME#v}"
-          {
-            echo '{'
-            echo "  \"version\": \"${release_tag}\","
-            echo '  "cores": ['
-            first=1
-            for nro in $(ls out/foyer-*.nro | sort); do
-              name=$(basename "$nro" .nro | sed 's/^foyer-//')
-              size=$(stat -c%s "$nro")
-              sum=$(sha256sum "$nro" | cut -d' ' -f1)
-              core_version=$(echo "$sum" | cut -c1-7)
-              url="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/$(basename $nro)"
-              [ $first -eq 0 ] && echo ','
-              first=0
-              printf '    { "name": "%s", "version": "%s", "nro": "%s", "size": %d, "sha256": "%s", "url": "%s" }' \
-                "$name" "$core_version" "$(basename $nro)" "$size" "$sum" "$url"
-            done
-            echo
-            echo '  ]'
-            echo '}'
-          } > out/manifest.json
-          cat out/manifest.json
+          python3 .github/scripts/build_manifest.py \
+            --tag "${{ needs.plan.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --recipes-dir recipes \
+            --artifacts-dir artifacts \
+            --prev-manifest prev/manifest.json \
+            --out out/manifest.json
+
+          if ls out/*.nro >/dev/null 2>&1; then
+            ( cd out && sha256sum foyer-*.nro > sha256sums.txt )
+          else
+            touch out/sha256sums.txt
+          fi
+          echo '--- manifest summary ---'
+          jq '{version, total: (.cores|length), fresh: [.cores[]|select(.last_built_tag=="${{ needs.plan.outputs.tag }}")]|length}' out/manifest.json
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            out/*.nro
-            out/manifest.json
-            out/sha256sums.txt
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          tag='${{ needs.plan.outputs.tag }}'
+          # Title surfaces the fresh-vs-inherit split so the release index is
+          # informative at a glance.
+          fresh=$(jq -r --arg t "$tag" '[.cores[]|select(.last_built_tag==$t)]|length' out/manifest.json)
+          total=$(jq -r '.cores|length' out/manifest.json)
+          title="$tag — $fresh of $total cores rebuilt"
+
+          # For schedule / dispatch the ref isn't a tag, so we create one
+          # pointing at the workflow's commit. For push events the tag
+          # already exists; gh release create errors if we try again — use
+          # gh release upload + edit instead.
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$tag" out/manifest.json out/sha256sums.txt out/*.nro \
+              --clobber --repo "${{ github.repository }}" || true
+            gh release edit "$tag" --title "$title" --repo "${{ github.repository }}"
+          else
+            args=(out/manifest.json out/sha256sums.txt)
+            if ls out/foyer-*.nro >/dev/null 2>&1; then
+              args+=(out/foyer-*.nro)
+            fi
+            gh release create "$tag" "${args[@]}" \
+              --target "${GITHUB_SHA}" \
+              --title "$title" \
+              --generate-notes \
+              --repo "${{ github.repository }}"
+          fi
