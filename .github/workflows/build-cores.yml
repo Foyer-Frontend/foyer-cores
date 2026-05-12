@@ -137,7 +137,18 @@ jobs:
 
       - name: Build
         working-directory: foyer
-        run: cmake --build build/Player-${{ matrix.core }} -j
+        run: |
+          # Cap parallelism per-core. puae's libretro-uae has huge
+          # cycle-accurate Amiga chipset TUs (cycle-exact custom
+          # blitter / paula / cia) that each pull ~1.5 GB resident
+          # at -O2/MinSizeRel through GCC 15 — three of those in
+          # flight OOMs the 16 GB runner, which manifests as a
+          # silent kill ~45 minutes in. Cap to 1.
+          JOBS=$(nproc)
+          case "${{ matrix.core }}" in
+            puae) JOBS=1 ;;
+          esac
+          cmake --build build/Player-${{ matrix.core }} -j "$JOBS"
 
       - name: Stage artefact
         working-directory: foyer
