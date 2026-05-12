@@ -15,9 +15,9 @@ name: Build cores
 on:
   push:
     tags:
-      # CalVer: YYYY.MM.DD[.N] — N suffix handles same-day rebuilds.
-      # Old v*.*.* tags stay matched for backward triggering of any
-      # legacy semver tag we cherry-pick into the rotation.
+      # CalVer: YYYY.MM.DD[.NN] — zero-padded NN suffix for same-day
+      # re-cuts (.01, .02, …). Old v*.*.* tags stay matched for any
+      # legacy semver tag cherry-picked into the rotation.
       - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]'
       - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9].*'
       - 'v*.*.*'
@@ -25,6 +25,13 @@ on:
     # Nightly at 03:00 UTC. Most upstreams are quiet that hour so we won't
     # race a libretro merge while building.
     - cron: '0 3 * * *'
+  repository_dispatch:
+    # Fired by foyer/.github/workflows/cores-autotag.yml whenever a
+    # commit on foyer's main touches shared/ or player/ — code that
+    # links into every foyer-<core>.nro. Treated as a force-rebuild,
+    # tag named after today's UTC date (with zero-padded suffix on
+    # collisions).
+    types: [foyer-source-change]
   workflow_dispatch:
     inputs:
       foyer_ref:
@@ -64,23 +71,48 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             tag="${GITHUB_REF_NAME}"
           else
+            # CalVer with zero-padded same-day suffix. Probes both the
+            # release list (visible by API) and the raw git tag list
+            # (in case a tag was pushed but the release publish step
+            # failed last time around) so we never collide with an
+            # in-flight rebuild.
             base=$(date -u +%Y.%m.%d)
             tag="$base"
-            i=1
-            while gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; do
-              tag="${base}.${i}"
-              i=$((i+1))
-            done
+            existing_releases=$(gh release list --repo "${{ github.repository }}" --limit 200 --json tagName --jq '.[].tagName' || true)
+            existing_tags=$(gh api repos/${{ github.repository }}/git/matching-refs/tags/$base --jq '.[].ref | sub("refs/tags/"; "")' 2>/dev/null || true)
+            all_existing=$(printf '%s\n%s\n' "$existing_releases" "$existing_tags" | sort -u)
+            if echo "$all_existing" | grep -qx "$base"; then
+              max=0
+              while read -r candidate; do
+                [ -z "$candidate" ] && continue
+                suffix=${candidate#${base}.}
+                [ "$suffix" = "$candidate" ] && continue
+                # Only NN-shaped suffixes count toward the bump; ignore
+                # arbitrary text in case a release was hand-named.
+                case "$suffix" in
+                  ''|*[!0-9]*) continue ;;
+                esac
+                num=$((10#$suffix))
+                [ "$num" -gt "$max" ] && max="$num"
+              done <<< "$all_existing"
+              next=$((max + 1))
+              tag=$(printf "%s.%02d" "$base" "$next")
+            fi
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "prev_manifest_url=https://github.com/${{ github.repository }}/releases/latest/download/manifest.json" >> "$GITHUB_OUTPUT"
 
-          # Tag pushes force full rebuild — cutting a tag means
-          # "publish a fresh batch of every core". Scheduled +
-          # dispatch runs use the smart-matrix skip path, unless
-          # the dispatch input flips force_rebuild_all on.
+          # Tag pushes + repository_dispatch from foyer force full
+          # rebuild. Tag = deliberate "publish a fresh batch"
+          # gesture; dispatch = foyer's shared/ or player/ changed,
+          # which feeds into every nro. Scheduled cron uses the
+          # smart-matrix skip path; workflow_dispatch defaults to
+          # smart, with a force_rebuild_all checkbox for manual
+          # fulls.
           force=false
           if [ "${{ github.event_name }}" = "push" ]; then
+            force=true
+          elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             force=true
           elif [ "${{ github.event.inputs.force_rebuild_all }}" = "true" ]; then
             force=true
@@ -197,23 +229,12 @@ jobs:
           prev_fp=""
           prev_recipe_sha=""
           # jq isn't guaranteed to be installed inside the builder
-          # container, so parse with python3 (which devkitPro's
-          # debian base does ship).
+          # container, so parse with a tiny python helper script
+          # (python3 ships in devkitPro's debian base).
           if curl -fsSL -o prev_manifest.json "${{ needs.plan.outputs.prev_manifest_url }}"; then
-            read -r prev_fp prev_recipe_sha <<EOF
-$(python3 -c "
-import json
-d = json.load(open('prev_manifest.json'))
-for c in d.get('cores', []):
-    if c.get('name') == '${{ matrix.core }}':
-        print((c.get('upstream_fingerprint') or '_').replace(' ', ''), (c.get('recipe_sha') or '_'))
-        break
-else:
-    print('_ _')
-")
-EOF
-            [ "$prev_fp" = "_" ] && prev_fp=""
-            [ "$prev_recipe_sha" = "_" ] && prev_recipe_sha=""
+            lookup=foyer-cores/.github/scripts/manifest_lookup.py
+            prev_fp=$(python3 "$lookup" prev_manifest.json "${{ matrix.core }}" upstream_fingerprint)
+            prev_recipe_sha=$(python3 "$lookup" prev_manifest.json "${{ matrix.core }}" recipe_sha)
           fi
           echo "prev fingerprint: $prev_fp"
           echo "prev recipe sha: $prev_recipe_sha"
