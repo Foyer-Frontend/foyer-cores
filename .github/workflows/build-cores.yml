@@ -104,12 +104,12 @@ jobs:
           # bootroms generated from BootROMs/prebuilt/*.bin).
     steps:
       - name: Checkout foyer-cores
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: foyer-cores
 
       - name: Checkout foyer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.FOYER_REPO }}
           ref: ${{ github.event.inputs.foyer_ref || 'main' }}
@@ -146,7 +146,7 @@ jobs:
           cp build/Player-${{ matrix.core }}/foyer-${{ matrix.core }}.nro ../out/
 
       - name: Upload artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: foyer-${{ matrix.core }}
           path: out/foyer-${{ matrix.core }}.nro
@@ -161,7 +161,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artefacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
