@@ -16,13 +16,17 @@ set(_VN ${libretro_vba_next_SOURCE_DIR})
 
 set(_VN_COMMON ${_VN}/libretro-common)
 
+# Upstream libretro/vba-next was a C++ codebase through ~2025; the
+# 2026 cleanup renamed every src/*.cpp + libretro/libretro.cpp to
+# plain .c (the code was already C-style — the rename matched
+# reality). Recipe tracks the new layout.
 add_library(core_vba_next STATIC
-    ${_VN}/src/gba.cpp
-    ${_VN}/src/memory.cpp
-    ${_VN}/src/sound.cpp
-    ${_VN}/src/system.cpp
+    ${_VN}/src/gba.c
+    ${_VN}/src/memory.c
+    ${_VN}/src/sound.c
+    ${_VN}/src/system.c
     ${_VN}/src/thread.c
-    ${_VN}/libretro/libretro.cpp
+    ${_VN}/libretro/libretro.c
     # libretro-common compat (filestream_* + friends — vba-next's
     # libretro.cpp calls these directly).
     ${_VN_COMMON}/compat/compat_posix_string.c
