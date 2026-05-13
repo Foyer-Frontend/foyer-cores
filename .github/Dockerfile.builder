@@ -23,3 +23,16 @@ RUN delay=10; \
     done; \
     echo "dkp-pacman failed after 20 attempts" >&2; \
     exit 1
+
+# ccache turns the 55-core matrix from "every job recompiles
+# borealis + foyer_shared + libretro frontend from scratch" into
+# "every job's TUs are cached per-core via actions/cache". First
+# cold run is no slower; subsequent runs (the common case — most
+# nightlies don't move upstream) drop to single-digit minutes per
+# core. The image only needs the binary; the workflow wires
+# CMAKE_C_COMPILER_LAUNCHER/CMAKE_CXX_COMPILER_LAUNCHER + the
+# CCACHE_DIR env var that actions/cache restores into.
+# devkitpro/devkita64 is Ubuntu-based so apt is the install path.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ccache \
+ && rm -rf /var/lib/apt/lists/*

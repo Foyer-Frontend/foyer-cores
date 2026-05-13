@@ -266,6 +266,44 @@ jobs:
           path: foyer
           fetch-depth: 0
 
+      # ccache cache — per-core key so each matrix job gets its own
+      # ~150 MB slice of the 10 GB repo-wide cache budget (55 cores ×
+      # ~150 MB = ~8 GB). Hash inputs:
+      #   - the recipe (changes mean different upstream sha / flags)
+      #   - foyer's shared lib + libretro frontend sources (changes
+      #     mean the player binary's link will re-walk those TUs).
+      # foyer-cores commit sha is also in the key so workflow edits
+      # bust the cache cleanly.
+      - name: Restore ccache
+        if: steps.gate.outputs.should_build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-${{ matrix.core }}-${{ hashFiles(format('foyer-cores/recipes/{0}.cmake', matrix.core), 'foyer/shared/**', 'foyer/player/**', 'foyer/CMakeLists.txt', 'foyer-cores/.github/Dockerfile.builder') }}
+          restore-keys: |
+            ccache-${{ matrix.core }}-
+
+      - name: Configure ccache
+        if: steps.gate.outputs.should_build == 'true'
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+        run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache --max-size=200M
+          ccache --zero-stats
+          ccache --show-config | head -8
+          # devkitA64 wraps the compilers — make sure ccache sees the
+          # actual binary path, not a wrapper, so its hash function
+          # works reliably.
+          echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$CCACHE_DIR" >> "$GITHUB_ENV"
+          # Many libretro cores hardcode __DATE__ / __TIME__ in their
+          # version-string macros. Without this flag every nightly
+          # would be a cache miss on those TUs (the preprocessor
+          # output literally embeds the build minute). time_macros
+          # tells ccache to elide those tokens from its hash.
+          echo "CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime,file_macro" >> "$GITHUB_ENV"
+
       # Direct cmake invocation rather than `cmake --preset` so newly-added
       # cores work without an entry in foyer's CMakePresets.json.
       - name: Configure
@@ -277,6 +315,8 @@ jobs:
           cmake -B build/Player-${{ matrix.core }} \
               --toolchain "$DEVKITPRO/cmake/Switch.cmake" \
               -DCMAKE_BUILD_TYPE=MinSizeRel \
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -DBUILD_BROWSER=OFF \
               -DBUILD_PLAYER=ON \
               -DFOYER_CORE=${{ matrix.core }}
@@ -296,6 +336,7 @@ jobs:
             puae) JOBS=1 ;;
           esac
           cmake --build build/Player-${{ matrix.core }} -j "$JOBS"
+          ccache --show-stats | head -8 || true
 
       - name: Stage artefact
         if: steps.gate.outputs.should_build == 'true'
