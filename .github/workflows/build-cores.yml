@@ -190,7 +190,11 @@ jobs:
           - nxengine
           - opera
           - mame2003_plus
-          - scummvm
+          # scummvm — disabled. Cap-to-j4 build takes ~45 min on the
+          # matrix runner (huge codebase, no ccache hit on first compile),
+          # bloating every release. Re-enable once we have a way to
+          # cache its objects across runs.
+          # - scummvm
           - puae
           # mesen + sameboy need generated assets / vendored deps that the
           # recipes don't handle yet (mesen: HQX/xBRZ scalers + SevenZip;
@@ -266,42 +270,43 @@ jobs:
           path: foyer
           fetch-depth: 0
 
-      # ccache cache — per-core key so each matrix job gets its own
-      # ~150 MB slice of the 10 GB repo-wide cache budget (55 cores ×
-      # ~150 MB = ~8 GB). Hash inputs:
-      #   - the recipe (changes mean different upstream sha / flags)
-      #   - foyer's shared lib + libretro frontend sources (changes
-      #     mean the player binary's link will re-walk those TUs).
-      # foyer-cores commit sha is also in the key so workflow edits
-      # bust the cache cleanly.
-      - name: Restore ccache
+      # Per-core ccache LAYERED on top of the image-baked
+      # /opt/ccache. Image already has borealis + foyer_shared +
+      # libretro_frontend warmed in — this cache only carries the
+      # per-core libretro upstream source TUs (the part that's
+      # genuinely unique per matrix entry).
+      #
+      # Key inputs:
+      #   - the recipe (upstream sha / flags)
+      #   - foyer/player/** + foyer/CMakeLists.txt (player main /
+      #     activities — links into every player nro)
+      #   - Dockerfile.builder (a new image bumps shared-side TU
+      #     hashes; restart per-core cache too).
+      - name: Restore per-core ccache
         if: steps.gate.outputs.should_build == 'true'
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ matrix.core }}-${{ hashFiles(format('foyer-cores/recipes/{0}.cmake', matrix.core), 'foyer/shared/**', 'foyer/player/**', 'foyer/CMakeLists.txt', 'foyer-cores/.github/Dockerfile.builder') }}
+          path: /opt/ccache
+          key: ccache-${{ matrix.core }}-${{ hashFiles(format('foyer-cores/recipes/{0}.cmake', matrix.core), 'foyer/player/**', 'foyer/CMakeLists.txt', 'foyer-cores/.github/Dockerfile.builder') }}
           restore-keys: |
             ccache-${{ matrix.core }}-
 
       - name: Configure ccache
         if: steps.gate.outputs.should_build == 'true'
-        env:
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
-          mkdir -p "$CCACHE_DIR"
-          ccache --max-size=200M
+          # /opt/ccache is the path the builder image baked the
+          # shared TUs into. Cap at 500 MB so per-core overlays
+          # stay bounded; ccache LRU-evicts when over.
+          ccache --max-size=500M
           ccache --zero-stats
           ccache --show-config | head -8
-          # devkitA64 wraps the compilers — make sure ccache sees the
-          # actual binary path, not a wrapper, so its hash function
-          # works reliably.
-          echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
-          echo "CCACHE_DIR=$CCACHE_DIR" >> "$GITHUB_ENV"
-          # Many libretro cores hardcode __DATE__ / __TIME__ in their
-          # version-string macros. Without this flag every nightly
-          # would be a cache miss on those TUs (the preprocessor
-          # output literally embeds the build minute). time_macros
-          # tells ccache to elide those tokens from its hash.
+          # devkitA64 wraps the compilers — content-hash so ccache
+          # sees the actual binary not the wrapper.
+          echo "CCACHE_COMPILERCHECK=content"  >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=/opt/ccache"        >> "$GITHUB_ENV"
+          # Many libretro cores hardcode __DATE__ / __TIME__ in
+          # their version-string macros. time_macros tells ccache
+          # to elide those tokens from its hash.
           echo "CCACHE_SLOPPINESS=time_macros,include_file_mtime,include_file_ctime,file_macro" >> "$GITHUB_ENV"
 
       # Direct cmake invocation rather than `cmake --preset` so newly-added
