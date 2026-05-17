@@ -6,11 +6,17 @@
 // requests the software renderer on Switch, but it still needs the symbols
 // for the hardware backend factories and the LibretroOpenGL/Vulkan host
 // display classes to resolve at link time. Provide them as defeated stubs.
+//
+// Upstream dropped the `u32` / `s32` typedefs from common/types.h — signatures
+// here are spelled `uint32_t` / `int32_t` so they bind to the redeclarations
+// in our gpu_hw_{opengl,vulkan}.h shims.
 
 #include "core/gpu.h"
 #include "core/gpu_hw_opengl.h"
 #include "core/gpu_hw_vulkan.h"
 #include "core/host_display.h"
+
+#include <cstdint>
 
 // ---------------------------------------------------------------------------
 // GPU::CreateHardware*Renderer() factories — return nullptr so the caller
@@ -57,20 +63,20 @@ bool LibretroOpenGLHostDisplay::CreateRenderDevice(const WindowInfo&, std::strin
 bool LibretroOpenGLHostDisplay::InitializeRenderDevice(std::string_view, bool, bool) { return false; }
 void LibretroOpenGLHostDisplay::DestroyRenderDevice() {}
 
-void LibretroOpenGLHostDisplay::ResizeRenderWindow(s32, s32) {}
+void LibretroOpenGLHostDisplay::ResizeRenderWindow(int32_t, int32_t) {}
 bool LibretroOpenGLHostDisplay::ChangeRenderWindow(const WindowInfo&) { return false; }
 
-std::unique_ptr<HostDisplayTexture> LibretroOpenGLHostDisplay::CreateTexture(u32, u32, u32, u32, u32,
-                                                                             HostDisplayPixelFormat, const void*, u32,
-                                                                             bool)
+std::unique_ptr<HostDisplayTexture> LibretroOpenGLHostDisplay::CreateTexture(uint32_t, uint32_t, uint32_t, uint32_t,
+                                                                             uint32_t, HostDisplayPixelFormat,
+                                                                             const void*, uint32_t, bool)
 {
   return nullptr;
 }
 
 bool LibretroOpenGLHostDisplay::SupportsDisplayPixelFormat(HostDisplayPixelFormat) const { return false; }
-bool LibretroOpenGLHostDisplay::BeginSetDisplayPixels(HostDisplayPixelFormat, u32, u32, void**, u32*) { return false; }
+bool LibretroOpenGLHostDisplay::BeginSetDisplayPixels(HostDisplayPixelFormat, uint32_t, uint32_t, void**, uint32_t*) { return false; }
 void LibretroOpenGLHostDisplay::EndSetDisplayPixels() {}
-bool LibretroOpenGLHostDisplay::SetDisplayPixels(HostDisplayPixelFormat, u32, u32, const void*, u32) { return false; }
+bool LibretroOpenGLHostDisplay::SetDisplayPixels(HostDisplayPixelFormat, uint32_t, uint32_t, const void*, uint32_t) { return false; }
 
 bool LibretroOpenGLHostDisplay::Render() { return false; }
 
@@ -95,18 +101,18 @@ bool LibretroVulkanHostDisplay::CreateRenderDevice(const WindowInfo&, std::strin
 bool LibretroVulkanHostDisplay::InitializeRenderDevice(std::string_view, bool, bool) { return false; }
 void LibretroVulkanHostDisplay::DestroyRenderDevice() {}
 
-void LibretroVulkanHostDisplay::ResizeRenderWindow(s32, s32) {}
+void LibretroVulkanHostDisplay::ResizeRenderWindow(int32_t, int32_t) {}
 bool LibretroVulkanHostDisplay::ChangeRenderWindow(const WindowInfo&) { return false; }
 
-std::unique_ptr<HostDisplayTexture> LibretroVulkanHostDisplay::CreateTexture(u32, u32, u32, u32, u32,
-                                                                             HostDisplayPixelFormat, const void*, u32,
-                                                                             bool)
+std::unique_ptr<HostDisplayTexture> LibretroVulkanHostDisplay::CreateTexture(uint32_t, uint32_t, uint32_t, uint32_t,
+                                                                             uint32_t, HostDisplayPixelFormat,
+                                                                             const void*, uint32_t, bool)
 {
   return nullptr;
 }
 
 bool LibretroVulkanHostDisplay::SupportsDisplayPixelFormat(HostDisplayPixelFormat) const { return false; }
-bool LibretroVulkanHostDisplay::BeginSetDisplayPixels(HostDisplayPixelFormat, u32, u32, void**, u32*) { return false; }
+bool LibretroVulkanHostDisplay::BeginSetDisplayPixels(HostDisplayPixelFormat, uint32_t, uint32_t, void**, uint32_t*) { return false; }
 void LibretroVulkanHostDisplay::EndSetDisplayPixels() {}
 
 bool LibretroVulkanHostDisplay::Render() { return false; }
