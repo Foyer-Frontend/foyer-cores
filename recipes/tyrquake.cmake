@@ -98,6 +98,13 @@ set(_TQ_C
     # the Vulkan path we don't build on Switch.
     ${_TQ_COM}/rhi.c
     ${_TQ_COM}/backend_sw.c
+    # backend_vulkan.c exports the g_rhi_backend_vk vtable
+    # unconditionally — rhi.c takes its address even without
+    # RHI_HAVE_VULKAN, so we must compile the no-op variant in.
+    # Without RHI_HAVE_VULKAN defined the TU has no Vulkan
+    # dependency and init() simply returns false, dropping
+    # auto-pick through to the software backend.
+    ${_TQ_COM}/backend_vulkan.c
     ${_TQ_COM}/r_edge.c
     ${_TQ_COM}/r_efrag.c
     ${_TQ_COM}/r_light.c
