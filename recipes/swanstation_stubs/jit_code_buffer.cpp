@@ -6,33 +6,31 @@
 // our build (CPU runs through the interpreter), so we just need the symbol
 // resolution to succeed — Allocate() returning false is fine because the
 // recompiler is never asked to use it.
+//
+// Upstream dropped the `u32` typedef from common/types.h — header signatures
+// are spelled `uint32_t` now. Match exactly so the linker resolves the
+// out-of-line definitions to declarations in jit_code_buffer.h. The previous
+// stub also declared two extra ctors (`(size, far)` and `(buffer, size, far,
+// guard)`) that don't exist in upstream's header anymore; drop them.
 
 #include "common/jit_code_buffer.h"
+
+#include <cstdint>
 #include <cstdlib>
 
 JitCodeBuffer::JitCodeBuffer() = default;
-
-JitCodeBuffer::JitCodeBuffer(u32 size, u32 far_code_size)
-{
-  Allocate(size, far_code_size);
-}
-
-JitCodeBuffer::JitCodeBuffer(void* buffer, u32 size, u32 far_code_size, u32 guard_size)
-{
-  Initialize(buffer, size, far_code_size, guard_size);
-}
 
 JitCodeBuffer::~JitCodeBuffer()
 {
   Destroy();
 }
 
-bool JitCodeBuffer::Allocate(u32 /*size*/, u32 /*far_code_size*/)
+bool JitCodeBuffer::Allocate(uint32_t /*size*/, uint32_t /*far_code_size*/)
 {
   return false;
 }
 
-bool JitCodeBuffer::Initialize(void* /*buffer*/, u32 /*size*/, u32 /*far_code_size*/, u32 /*guard_size*/)
+bool JitCodeBuffer::Initialize(void* /*buffer*/, uint32_t /*size*/, uint32_t /*far_code_size*/, uint32_t /*guard_size*/)
 {
   return false;
 }
@@ -56,23 +54,23 @@ void JitCodeBuffer::Reset()
   m_far_code_used = 0;
 }
 
-void JitCodeBuffer::ReserveCode(u32 size)
+void JitCodeBuffer::ReserveCode(uint32_t size)
 {
   m_code_reserve_size = size;
 }
 
-void JitCodeBuffer::CommitCode(u32 length)
+void JitCodeBuffer::CommitCode(uint32_t length)
 {
   m_free_code_ptr += length;
   m_code_used += length;
 }
 
-void JitCodeBuffer::CommitFarCode(u32 length)
+void JitCodeBuffer::CommitFarCode(uint32_t length)
 {
   m_free_far_code_ptr += length;
   m_far_code_used += length;
 }
 
-void JitCodeBuffer::Align(u32 /*alignment*/, u8 /*padding_value*/) {}
+void JitCodeBuffer::Align(uint32_t /*alignment*/, uint8_t /*padding_value*/) {}
 
-void JitCodeBuffer::FlushInstructionCache(void* /*address*/, u32 /*size*/) {}
+void JitCodeBuffer::FlushInstructionCache(void* /*address*/, uint32_t /*size*/) {}
