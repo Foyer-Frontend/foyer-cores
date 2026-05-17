@@ -91,6 +91,13 @@ set(_TQ_C
     ${_TQ_COM}/r_alias.c
     ${_TQ_COM}/r_bsp.c
     ${_TQ_COM}/r_draw.c
+    # rhi (Render Hardware Interface) — added upstream after the
+    # 0.6.x recipe pin. common/libretro.c calls rhi_init / rhi_shutdown
+    # / g_rhi, all defined in common/rhi.c which dispatches to a
+    # backend. Pull in the software backend; backend_vulkan.c is for
+    # the Vulkan path we don't build on Switch.
+    ${_TQ_COM}/rhi.c
+    ${_TQ_COM}/backend_sw.c
     ${_TQ_COM}/r_edge.c
     ${_TQ_COM}/r_efrag.c
     ${_TQ_COM}/r_light.c
