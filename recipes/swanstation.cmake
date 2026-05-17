@@ -54,6 +54,22 @@ file(WRITE ${_SWAN_GENINC}/config.h
 /* Intentionally empty — see cores/swanstation.cmake. */
 ")
 
+# cpu_code_cache.cpp uses std::find / std::find_if without the
+# explicit <algorithm> include. Newer GCC stops including it
+# transitively from <vector>/<list>, so add a prepend patch.
+# Idempotent: sentinel marker on first line skips re-application.
+set(_SWAN_CCACHE ${_SWAN_SRC}/core/cpu_code_cache.cpp)
+if (EXISTS ${_SWAN_CCACHE})
+    file(READ ${_SWAN_CCACHE} _swan_ccache_head LIMIT 64)
+    if (NOT _swan_ccache_head MATCHES "FOYER_ALGORITHM_PATCH")
+        file(READ ${_SWAN_CCACHE} _swan_ccache_body)
+        file(WRITE ${_SWAN_CCACHE}
+"// FOYER_ALGORITHM_PATCH
+#include <algorithm>
+${_swan_ccache_body}")
+    endif()
+endif()
+
 # ---------------------------------------------------------------------------
 # core/  — PSX emulator core (CPU, GPU sw, SPU, CDROM, DMA, GTE, etc.).
 # Skip the recompiler TUs and the hardware GPU backends; the stubs file

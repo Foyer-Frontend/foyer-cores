@@ -162,7 +162,12 @@ jobs:
           - mesen
           - sameboy
           - gpsp
-          - parallel_n64
+          # parallel_n64 — disabled. Upstream link error chain
+          # (undefined: memory_layout, g_frameCheatStatus,
+          # g_cheatStatus, …). Recipe needs a broader source-file
+          # audit or upstream rollback; until then keep it out of
+          # the matrix so the rest of the cores publish cleanly.
+          # - parallel_n64
           - mednafen_psx_hw
           - ppsspp
           - prboom

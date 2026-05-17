@@ -100,6 +100,7 @@ set(_TQ_C
     ${_TQ_COM}/r_part.c
     ${_TQ_COM}/r_sky.c
     ${_TQ_COM}/r_sprite.c
+    ${_TQ_COM}/r_subdiv.c
     ${_TQ_COM}/r_vars.c
     ${_TQ_COM}/r_surf.c
     ${_TQ_COM}/rb_tree.c
