@@ -14,6 +14,25 @@ FetchContent_MakeAvailable(libretro_puae)
 
 set(_PU     ${libretro_puae_SOURCE_DIR})
 set(_PU_E   ${_PU}/sources/src)
+
+# Upstream misc.c carries a block of empty `void png_*(void) {}` stubs
+# (for a long-removed libpng usage). They collided with the real
+# libpng pulled in transitively by SDL2_image once the player binary
+# linked Plutonium in 0.7.0 — `multiple definition of png_set_expand`
+# etc. Strip the stubs so SDL2_image gets the real libpng.
+set(_puae_misc_in  ${_PU_E}/misc.c)
+set(_puae_misc_out ${CMAKE_CURRENT_BINARY_DIR}/puae_patched/misc.c)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/puae_patched)
+file(READ ${_puae_misc_in} _puae_misc_src)
+string(REGEX REPLACE
+    "void[ \t]+png_[a-zA-Z_]+[ \t]*\\([ \t]*void[ \t]*\\)[ \t]*\\{[ \t]*\\}"
+    "/* libpng stub stripped by foyer-cores recipe */"
+    _puae_misc_src "${_puae_misc_src}")
+string(REGEX REPLACE
+    "struct[ \t]+zfile\\*[ \t]+png_get_io_ptr[ \t]*=[ \t]*NULL[ \t]*;"
+    "/* libpng stub stripped */"
+    _puae_misc_src "${_puae_misc_src}")
+file(WRITE ${_puae_misc_out} "${_puae_misc_src}")
 set(_PU_LR  ${_PU}/libretro)
 set(_PU_LRC ${_PU}/libretro-common)
 set(_PU_DP  ${_PU}/deps)
@@ -117,7 +136,7 @@ add_library(core_puae STATIC
     ${_PU_E}/keybuf.c
     ${_PU_E}/main.c
     ${_PU_E}/memory.c
-    ${_PU_E}/misc.c
+    ${CMAKE_CURRENT_BINARY_DIR}/puae_patched/misc.c
     ${_PU_E}/missing.c
     ${_PU_E}/native2amiga.c
     ${_PU_E}/ncr_scsi.c
