@@ -464,6 +464,18 @@ add_dependencies(core_ppsspp ppsspp_libretro_a_target)
 # of libz.a *inside* the group, where it can satisfy the cross-archive
 # references. The dedup pass compares strings, not search results.
 target_link_libraries(core_ppsspp INTERFACE
+    # `--allow-multiple-definition` covers the libpng17 collision that
+    # surfaced once the player binary started linking SDL2_image in
+    # 0.7.0 — ppsspp's libretro.a ships its own ext/libpng17/*.o
+    # and SDL2_image transitively pulls switch-portlibs libpng. Both
+    # export the standard libpng API; ld picks the first definition
+    # (ppsspp's, since libretro.a leads the group). PNG decoding
+    # stays self-consistent: ppsspp internal callers see ppsspp's
+    # libpng17, SDL2_image's calls also hit libpng17 first — same
+    # ABI in both branches so SDL2_image's png_struct allocations
+    # round-trip correctly even though they nominally came from
+    # different "libraries".
+    -Wl,--allow-multiple-definition
     -Wl,--start-group
     ${_PSP_LIBA}
     ppsspp_vr_stubs

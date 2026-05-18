@@ -25,7 +25,7 @@ set(_puae_misc_out ${CMAKE_CURRENT_BINARY_DIR}/puae_patched/misc.c)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/puae_patched)
 file(READ ${_puae_misc_in} _puae_misc_src)
 string(REGEX REPLACE
-    "void[ \t]+png_[a-zA-Z_]+[ \t]*\\([ \t]*void[ \t]*\\)[ \t]*\\{[ \t]*\\}"
+    "void[ \t]+png_[a-zA-Z0-9_]+[ \t]*\\([ \t]*void[ \t]*\\)[ \t]*\\{[ \t]*\\}"
     "/* libpng stub stripped by foyer-cores recipe */"
     _puae_misc_src "${_puae_misc_src}")
 string(REGEX REPLACE
