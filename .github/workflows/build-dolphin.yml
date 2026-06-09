@@ -40,20 +40,10 @@ jobs:
               https://github.com/ticohq/tico-dolphin.git dolphin
           cd dolphin
           echo "dolphin_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-          # Submodules the NX build needs — full list pruned by trial;
-          # start with the usual Dolphin externals.
-          git submodule update --init --depth 1 \
-              Externals/fmt Externals/mbedtls Externals/curl \
-              Externals/zlib-ng Externals/zstd Externals/lz4 \
-              Externals/libpng Externals/pugixml Externals/minizip-ng \
-              Externals/spirv_cross Externals/glslang \
-              Externals/imgui Externals/rangeset Externals/Vulkan-Headers \
-              Externals/VulkanMemoryAllocator Externals/xxhash \
-              Externals/enet Externals/cubeb Externals/SFML \
-              Externals/picojson Externals/Bochs_disasm Externals/cpp-optparse \
-              Externals/expr Externals/FatFs Externals/hidapi \
-              Externals/liblzma Externals/bzip2 Externals/soundtouch \
-              2>&1 | tail -5 || true
+          # Full recursive init — Dolphin's externals nest (e.g.
+          # Externals/libspng/libspng) and hand-picking missed
+          # several. Total tree is a few hundred MB, acceptable.
+          git submodule update --init --recursive --depth 1
 
       - name: Locate NVK build tree
         run: |
@@ -62,9 +52,12 @@ jobs:
 
       - name: Build dolphin-nx
         run: |
+          # pipefail: without it the pipe into tail swallows the
+          # script's exit code and a failed build reports green.
+          set -o pipefail
           cd dolphin
           export MESA_NVK_DIR=/nvk-build
-          bash build_dolphin_standalone_nro.sh 2>&1 | tail -100
+          bash build_dolphin_standalone_nro.sh 2>&1 | tail -150
 
       - name: Upload NRO
         uses: actions/upload-artifact@v5
