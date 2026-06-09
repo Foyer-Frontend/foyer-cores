@@ -1,0 +1,106 @@
+name: Build NVK builder image
+
+# Builds the Switch NVK (Mesa Vulkan) toolchain + driver tree and
+# bakes both into ghcr.io/foyer-frontend/switch-nvk-builder. The
+# image is the foundation for build-dolphin.yml — tico-dolphin's
+# standalone NRO links Mesa NVK's libvulkan.a (MESA_NVK_DIR).
+#
+# Recipe: HayatoG/switch-nvk (AGPL-3.0 + copyleft fork policy — we
+# run their scripts verbatim from a pinned checkout rather than
+# copying them; everything here stays public which satisfies the
+# policy). Their BUILD_AND_RUN.md documents the exact sequence:
+#   1. docker build (devkitpro/devkita64 + meson + Rust nightly +
+#      bindgen/cbindgen + LLVM-15/libclc/SPIRV tooling)
+#   2. fetch Mesa 25.0.7 + apply their 9 Switch patches + the
+#      VI/nwindow WSI backend (apply-patches.sh / apply-wsi-switch.sh)
+#   3. 2-phase build: native mesa_clc first, then meson cross →
+#      static libs under /work/mb/src/**/lib*.a
+#
+# Manual trigger only — this is a slow (~1h) image rebuild that's
+# needed once per switch-nvk/Mesa bump, not per release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      switch_nvk_ref:
+        description: "HayatoG/switch-nvk ref to build"
+        required: false
+        default: "cf7388214ad1"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space (Mesa + Rust + LLVM need ~15 GB)
+        run: |
+          sudo rm -rf /usr/local/lib/android /opt/hostedtoolcache/CodeQL \
+                      /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Clone switch-nvk (pinned)
+        run: |
+          git clone https://github.com/HayatoG/switch-nvk.git nvk
+          cd nvk
+          git checkout "${{ inputs.switch_nvk_ref }}"
+          echo "nvk_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build toolchain image
+        run: docker build -t switch-nvk-build -f nvk/Dockerfile nvk
+
+      - name: Fetch Mesa 25.0.7
+        run: |
+          curl -fsSL https://archive.mesa3d.org/mesa-25.0.7.tar.xz -o mesa.tar.xz
+          tar xf mesa.tar.xz
+          mv mesa-25.0.7 nvk/mesa-25
+          rm mesa.tar.xz
+
+      - name: Apply Switch patches + WSI backend
+        run: |
+          docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
+              bash /work/apply-patches.sh
+          docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
+              bash /work/winsys/wsi/apply-wsi-switch.sh
+
+      - name: Build Mesa NVK (2-phase cross)
+        run: |
+          docker run --rm -v "$PWD/nvk:/work" -w /work/mesa-25 switch-nvk-build bash -lc '
+            set -e
+            export NATIVE_PREFIX=/work/native-prefix
+            export PATH=/work/native-prefix/bin:$PATH
+            export BUILD=/work/mb
+            bash /work/build-native-tools.sh
+            bash /work/configure-mesa.sh
+            ninja -C /work/mb'
+
+      - name: Bake builder image (toolchain + mesa tree + build dir)
+        run: |
+          # Final image layers the patched Mesa source + the meson
+          # build tree (static libs) on top of the toolchain at the
+          # paths tico-dolphin's nx build expects to point
+          # MESA_NVK_DIR at. /nvk-build mirrors the layout that
+          # tico's build scripts default to.
+          cat > Dockerfile.nvk-final <<'EOF'
+          FROM switch-nvk-build
+          COPY nvk/mesa-25 /nvk-mesa
+          COPY nvk/mb /nvk-build-artifacts
+          # MESA_NVK_DIR consumers reference both the source include
+          # dirs and the built static libs through one root — symlink
+          # the build artifacts into the source tree mirror.
+          RUN cp -a /nvk-build-artifacts/. /nvk-mesa/ 2>/dev/null || true \
+           && ln -sfn /nvk-mesa /nvk-build
+          EOF
+          docker build -t ghcr.io/foyer-frontend/switch-nvk-builder:${nvk_sha} \
+                       -f Dockerfile.nvk-final .
+          docker tag ghcr.io/foyer-frontend/switch-nvk-builder:${nvk_sha} \
+                     ghcr.io/foyer-frontend/switch-nvk-builder:latest
+
+      - name: Push image
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push ghcr.io/foyer-frontend/switch-nvk-builder:${nvk_sha}
+          docker push ghcr.io/foyer-frontend/switch-nvk-builder:latest
