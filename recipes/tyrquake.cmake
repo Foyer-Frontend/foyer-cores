@@ -105,6 +105,10 @@ set(_TQ_C
     # dependency and init() simply returns false, dropping
     # auto-pick through to the software backend.
     ${_TQ_COM}/backend_vulkan.c
+    # perf_timing — upstream added 2026-05-19 (commit 5c09044). Defines
+    # perf_timing_section_begin/_section_end/_end_frame/_register_cvars
+    # referenced from libretro.c, host.c, r_main.c, screen.c.
+    ${_TQ_COM}/perf_timing.c
     ${_TQ_COM}/r_edge.c
     ${_TQ_COM}/r_efrag.c
     ${_TQ_COM}/r_light.c
