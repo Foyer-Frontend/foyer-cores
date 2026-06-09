@@ -91,12 +91,12 @@ add_library(core_opera STATIC
     ${_OP_DP}/libchdr/src/libchdr_chd.c
     ${_OP_DP}/libchdr/src/libchdr_flac.c
     ${_OP_DP}/libchdr/src/libchdr_huffman.c
-    ${_OP_DP}/zlib-1.2.11/adler32.c
-    ${_OP_DP}/zlib-1.2.11/crc32.c
-    ${_OP_DP}/zlib-1.2.11/inffast.c
-    ${_OP_DP}/zlib-1.2.11/inflate.c
-    ${_OP_DP}/zlib-1.2.11/inftrees.c
-    ${_OP_DP}/zlib-1.2.11/zutil.c
+    ${_OP_DP}/zlib-1.3.1.2/adler32.c
+    ${_OP_DP}/zlib-1.3.1.2/crc32.c
+    ${_OP_DP}/zlib-1.3.1.2/inffast.c
+    ${_OP_DP}/zlib-1.3.1.2/inflate.c
+    ${_OP_DP}/zlib-1.3.1.2/inftrees.c
+    ${_OP_DP}/zlib-1.3.1.2/zutil.c
 )
 
 target_include_directories(core_opera PUBLIC
@@ -106,7 +106,7 @@ target_include_directories(core_opera PUBLIC
     ${_OP_DP}
     ${_OP_DP}/lzma-19.00/include
     ${_OP_DP}/libchdr/include
-    ${_OP_DP}/zlib-1.2.11
+    ${_OP_DP}/zlib-1.3.1.2
 )
 
 target_compile_definitions(core_opera PRIVATE

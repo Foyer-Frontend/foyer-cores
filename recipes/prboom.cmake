@@ -31,6 +31,10 @@ set(_PRBOOM_SRC  ${_PRBOOM}/src)
 set(_PRBOOM_LR   ${_PRBOOM}/libretro)
 set(_PRBOOM_COMM ${_PRBOOM_LR}/libretro-common)
 set(_PRBOOM_MAD  ${_PRBOOM}/deps/libmad)
+# Upstream pulled the bundled miniz out of src/ into deps/miniz on
+# 2026-05 — p_setup.c now `#include "miniz.h"` from there. Add to
+# the include path so the build resolves it.
+set(_PRBOOM_MINIZ ${_PRBOOM}/deps/miniz)
 
 # Enumerate src/*.c — upstream's Makefile.common picks ~60 of the 76
 # files, but the un-listed ones either compile clean as no-ops or
@@ -87,6 +91,7 @@ target_include_directories(core_prboom PUBLIC
     ${_PRBOOM_LR}
     ${_PRBOOM_COMM}/include
     ${_PRBOOM_MAD}
+    ${_PRBOOM_MINIZ}
 )
 
 target_compile_definitions(core_prboom PRIVATE
