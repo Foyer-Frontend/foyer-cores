@@ -1,0 +1,74 @@
+name: Build Dolphin standalone NRO
+
+# Builds ticohq/tico-dolphin's standalone Switch port (dolphin-nx)
+# inside the switch-nvk-builder image (Mesa NVK Vulkan static libs
+# at /nvk-build — see build-nvk-image.yml) and uploads dolphin.nro.
+#
+# tico's own builds use a private NVK layer; ours reproduces it from
+# HayatoG/switch-nvk's public recipe. First runs are exploratory:
+# tico-dolphin's DolphinNX/CMakeLists references the NVK build tree
+# (src/nouveau/vulkan/libvulkan.a + assorted include dirs) whose
+# exact shape may differ from our bake — failures here map the gap.
+#
+# Manual trigger while the port stabilises.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dolphin_ref:
+        description: "ticohq/tico-dolphin ref to build"
+        required: false
+        default: "master"
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/foyer-frontend/switch-nvk-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Clone tico-dolphin
+        run: |
+          git config --global --add safe.directory '*'
+          git clone --depth 1 --branch "${{ inputs.dolphin_ref }}" \
+              https://github.com/ticohq/tico-dolphin.git dolphin
+          cd dolphin
+          echo "dolphin_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          # Submodules the NX build needs — full list pruned by trial;
+          # start with the usual Dolphin externals.
+          git submodule update --init --depth 1 \
+              Externals/fmt Externals/mbedtls Externals/curl \
+              Externals/zlib-ng Externals/zstd Externals/lz4 \
+              Externals/libpng Externals/pugixml Externals/minizip-ng \
+              Externals/spirv_cross Externals/glslang \
+              Externals/imgui Externals/rangeset Externals/Vulkan-Headers \
+              Externals/VulkanMemoryAllocator Externals/xxhash \
+              Externals/enet Externals/cubeb Externals/SFML \
+              Externals/picojson Externals/Bochs_disasm Externals/cpp-optparse \
+              Externals/expr Externals/FatFs Externals/hidapi \
+              Externals/liblzma Externals/bzip2 Externals/soundtouch \
+              2>&1 | tail -5 || true
+
+      - name: Locate NVK build tree
+        run: |
+          ls -la /nvk-build/ | head
+          find /nvk-build -name 'libvulkan*.a' -o -name 'libnvk.a' | head -10
+
+      - name: Build dolphin-nx
+        run: |
+          cd dolphin
+          export MESA_NVK_DIR=/nvk-build
+          bash build_dolphin_standalone_nro.sh 2>&1 | tail -100
+
+      - name: Upload NRO
+        uses: actions/upload-artifact@v5
+        with:
+          name: dolphin-nro-${{ env.dolphin_sha }}
+          path: dolphin/build_nx_standalone/dolphin.nro
+          if-no-files-found: error
