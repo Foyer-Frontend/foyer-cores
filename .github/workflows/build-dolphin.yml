@@ -51,6 +51,7 @@ jobs:
           find /nvk-build -name 'libvulkan*.a' -o -name 'libnvk.a' | head -10
 
       - name: Build dolphin-nx
+        shell: bash
         run: |
           # pipefail: without it the pipe into tail swallows the
           # script's exit code and a failed build reports green.
