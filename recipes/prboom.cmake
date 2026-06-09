@@ -42,7 +42,17 @@ set(_PRBOOM_MINIZ ${_PRBOOM}/deps/miniz)
 # the simplest way to keep up with upstream additions; if a future
 # update adds a file that breaks the link, we'll surface it on CI
 # and pin to a specific subset.
-file(GLOB _PRBOOM_CORE_C "${_PRBOOM_SRC}/*.c")
+#
+# src/heretic/ + src/hexen/ subdirs landed with upstream's
+# Heretic/Hexen support (2026-05) — dsda_hacked.c + d_main.c
+# reference their tables unconditionally, so both subdirs are
+# link-required now. miniz.c moved from src/ to deps/miniz/ in the
+# same window, dropping it out of the src glob — list it explicitly.
+file(GLOB _PRBOOM_CORE_C
+    "${_PRBOOM_SRC}/*.c"
+    "${_PRBOOM_SRC}/heretic/*.c"
+    "${_PRBOOM_SRC}/hexen/*.c")
+list(APPEND _PRBOOM_CORE_C ${_PRBOOM_MINIZ}/miniz.c)
 
 set(_PRBOOM_LR_C
     ${_PRBOOM_LR}/libretro.c
