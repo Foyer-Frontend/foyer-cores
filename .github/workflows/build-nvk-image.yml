@@ -92,6 +92,19 @@ jobs:
           docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
               bash /work/winsys/wsi/apply-wsi-switch.sh
 
+      - name: Build Rust std sysroot (Switch tier-3 target)
+        run: |
+          # rustc-switch.sh (meson's rust binary for the cross build)
+          # hard-requires the prebuilt std sysroot at /work/sysroot —
+          # NAK is Rust and aarch64-switch-horizon is a tier-3 target
+          # with no shipped std. Also restore exec bits: the repo was
+          # authored on Windows, so the wrapper scripts may land
+          # without +x and meson's compiler probe reports "Unknown
+          # compiler" when exec fails.
+          chmod +x nvk/*.sh nvk/winsys/*.sh 2>/dev/null || true
+          docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
+              bash /work/build-std-sysroot.sh
+
       - name: Cross-build Mesa NVK (phase 2)
         run: |
           # The cross ICD .so link is EXPECTED to fail on the same
