@@ -58,7 +58,7 @@ jobs:
           mv mesa-25.0.7 nvk/mesa-25
           rm mesa.tar.xz
 
-      - name: Apply Switch patches + WSI backend
+      - name: Apply Switch source patches
         run: |
           # switch-nvk was authored on Windows — the .patch files
           # carry CRLF line endings while the Mesa tarball is LF, so
@@ -69,24 +69,40 @@ jobs:
           find nvk -name '*.sh'    -exec sed -i 's/\r$//' {} +
           docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
               bash /work/apply-patches.sh
+
+      - name: Build native tools (phase 1, pre-WSI)
+        run: |
+          # MUST run before apply-wsi-switch.sh: the WSI mesa-edits
+          # carry NVK_TRACE diagnostics referencing
+          # g_drm_shim_log_sink (defined only in the winsys shim,
+          # linked at .nro time). Phase 1 builds the FULL mesa tree
+          # natively to produce mesa_clc + the precomp compiler — if
+          # the edits are already in the tree, the native
+          # libvulkan_nouveau.so link dies on that symbol. The
+          # author's persistent mount built these tools before the
+          # diagnostics existed; CI rebuilds from scratch each time,
+          # so order matters.
+          docker run --rm -v "$PWD/nvk:/work" -w /work/mesa-25 switch-nvk-build bash -lc '
+            set -e
+            export NATIVE_PREFIX=/work/native-prefix
+            bash /work/build-native-tools.sh'
+
+      - name: Apply WSI backend (post-native-tools)
+        run: |
           docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
               bash /work/winsys/wsi/apply-wsi-switch.sh
 
-      - name: Build Mesa NVK (2-phase cross)
+      - name: Cross-build Mesa NVK (phase 2)
         run: |
-          # The final ICD .so link is EXPECTED to fail: switch-nvk's
-          # mesa-edits (nvk_queue.c / wsi_common.c) reference
-          # g_drm_shim_log_sink, which lives in their winsys shim and
-          # only links at .nro time. Their own flow consumes the
-          # static libs (mb/src/**/lib*.a), all of which build before
-          # the .so link runs — so tolerate the ninja failure and
-          # assert the libs we actually need exist.
+          # The cross ICD .so link is EXPECTED to fail on the same
+          # g_drm_shim_log_sink diagnostics — every static lib builds
+          # before that final link, and consumers only use the .a's.
+          # Tolerate the ninja failure and assert the libs exist.
           docker run --rm -v "$PWD/nvk:/work" -w /work/mesa-25 switch-nvk-build bash -lc '
             set -e
             export NATIVE_PREFIX=/work/native-prefix
             export PATH=/work/native-prefix/bin:$PATH
             export BUILD=/work/mb
-            bash /work/build-native-tools.sh
             bash /work/configure-mesa.sh
             ninja -C /work/mb || true
             test -f /work/mb/src/nouveau/vulkan/libnvk.a
