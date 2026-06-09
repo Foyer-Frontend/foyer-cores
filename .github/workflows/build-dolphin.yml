@@ -50,6 +50,20 @@ jobs:
           ls -la /nvk-build/ | head
           find /nvk-build -name 'libvulkan*.a' -o -name 'libnvk.a' | head -10
 
+      - name: Patch NX link block (SDL2 EGL deps)
+        shell: bash
+        run: |
+          # devkitPro's switch-sdl2 video backend references EGL —
+          # the portlib normally links -lEGL -lglapi -ldrm_nouveau
+          # after it (see sdl2-config --static-libs). tico's
+          # DolphinNX CMakeLists lists only libSDL2.a + libnx; their
+          # private tree presumably patched SDL or linked the GL
+          # stack elsewhere. Append the mesa GL libs right after
+          # libSDL2.a so the archive ordering resolves.
+          sed -i 's|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a\n  ${DEVKITPRO}/portlibs/switch/lib/libEGL.a\n  ${DEVKITPRO}/portlibs/switch/lib/libglapi.a\n  ${DEVKITPRO}/portlibs/switch/lib/libdrm_nouveau.a|' \
+              dolphin/Source/Core/DolphinNX/CMakeLists.txt
+          grep -A 4 'libSDL2.a' dolphin/Source/Core/DolphinNX/CMakeLists.txt | head -6
+
       - name: Build dolphin-nx
         shell: bash
         run: |
