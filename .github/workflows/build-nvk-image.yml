@@ -60,6 +60,13 @@ jobs:
 
       - name: Apply Switch patches + WSI backend
         run: |
+          # switch-nvk was authored on Windows — the .patch files
+          # carry CRLF line endings while the Mesa tarball is LF, so
+          # `patch` rejects every hunk with "different line endings".
+          # Normalize the patches (and any helper scripts) to LF
+          # before running their apply scripts.
+          find nvk -name '*.patch' -exec sed -i 's/\r$//' {} +
+          find nvk -name '*.sh'    -exec sed -i 's/\r$//' {} +
           docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
               bash /work/apply-patches.sh
           docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build \
