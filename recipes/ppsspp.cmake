@@ -55,10 +55,17 @@ FetchContent_Declare(libretro_ppsspp
     # a clean build dir if you need to force a refresh.
     UPDATE_DISCONNECTED    TRUE)
 
+# ticohq/tico-ppsspp-ffmpeg (prebuilt switch_build/ archives) was
+# deleted from GitHub in 2026-06. tico-ppsspp's gitPatches/
+# ffmpeg.patch documents how that repo was produced: upstream
+# hrydgard/ppsspp-ffmpeg's switch.sh with --prefix flipped from
+# $PORTLIBS_PREFIX to $(pwd)/switch_build. We reproduce that here —
+# clone hrydgard's repo at the SHA tico-ppsspp's ffmpeg submodule
+# pins, then configure + make install into switch_build/ ourselves
+# (see the build block below).
 FetchContent_Declare(libretro_ppsspp_ffmpeg
-    GIT_REPOSITORY https://github.com/ticohq/tico-ppsspp-ffmpeg.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    GIT_REPOSITORY https://github.com/hrydgard/ppsspp-ffmpeg.git
+    GIT_TAG        1e3b4965632f60b1d85360261d1b9dd45444bc71)
 
 FetchContent_GetProperties(libretro_ppsspp)
 if (NOT libretro_ppsspp_POPULATED)
@@ -101,11 +108,65 @@ if (NOT EXISTS ${_PSP_SUBMOD_GUARD})
 endif()
 
 # ---------------------------------------------------------------------------
+# Build the Switch FFmpeg static archives if they aren't there yet.
+# Reproduces tico's switch.sh (--prefix=switch_build) — see the
+# FetchContent comment above. Configure flags copied verbatim from
+# hrydgard/ppsspp-ffmpeg's switch.sh; one-time per build dir, ~4 min.
+# Guarded on libavcodec.a so re-configures skip it.
+# ---------------------------------------------------------------------------
+if (NOT EXISTS ${_PSP_FF}/switch_build/lib/libavcodec.a)
+    message(STATUS "ppsspp: building Switch FFmpeg (one-time, ~4 min)")
+    execute_process(
+        COMMAND bash -c "\
+            set -e; \
+            source /opt/devkitpro/switchvars.sh; \
+            ./configure \
+                --prefix=$(pwd)/switch_build \
+                --enable-cross-compile --arch=aarch64 \
+                --cross-prefix=aarch64-none-elf- --target-os=horizon \
+                --extra-cflags='-g -D__SWITCH__ -D_GNU_SOURCE -O3 -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -pie -ffunction-sections -fdata-sections -ftls-model=local-exec' \
+                --extra-cxxflags='-g -D__SWITCH__ -D_GNU_SOURCE -O3 -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -pie -ffunction-sections -fdata-sections -ftls-model=local-exec' \
+                --extra-ldflags=\"-g -fPIE -pie -L\${PORTLIBS_PREFIX}/lib -L\${DEVKITPRO}/libnx/lib\" \
+                --disable-shared --enable-static --enable-zlib \
+                --disable-runtime-cpudetect --disable-everything \
+                --disable-filters --disable-programs --disable-network \
+                --disable-avfilter --disable-postproc --disable-encoders \
+                --disable-protocols --disable-hwaccels --disable-doc \
+                --enable-decoder=h264 --enable-decoder=mpeg4 \
+                --enable-decoder=mpeg2video --enable-decoder=mjpeg \
+                --enable-decoder=mjpegb \
+                --enable-decoder=aac --enable-decoder=aac_latm \
+                --enable-decoder=atrac3 --enable-decoder=atrac3p \
+                --enable-decoder=mp3 --enable-decoder=pcm_s16le \
+                --enable-decoder=pcm_s8 \
+                --enable-demuxer=h264 --enable-demuxer=m4v \
+                --enable-demuxer=mpegvideo --enable-demuxer=mpegps \
+                --enable-demuxer=mp3 --enable-demuxer=avi \
+                --enable-demuxer=aac --enable-demuxer=pmp \
+                --enable-demuxer=oma --enable-demuxer=pcm_s16le \
+                --enable-demuxer=pcm_s8 --enable-demuxer=wav \
+                --enable-encoder=huffyuv --enable-encoder=ffv1 \
+                --enable-encoder=mjpeg --enable-encoder=pcm_s16le \
+                --enable-muxer=avi \
+                --enable-parser=h264 --enable-parser=mpeg4video \
+                --enable-parser=mpegaudio --enable-parser=mpegvideo \
+                --enable-parser=aac --enable-parser=aac_latm; \
+            make -j$(nproc) install"
+        WORKING_DIRECTORY ${_PSP_FF}
+        RESULT_VARIABLE _ff_rc)
+    if (NOT _ff_rc EQUAL 0)
+        message(FATAL_ERROR
+            "ppsspp: Switch FFmpeg build failed (rc=${_ff_rc}). "
+            "Inspect the configure/make output above; ffbuild/config.log "
+            "under ${_PSP_FF} has the configure detail.")
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
 # The Makefile expects ffmpeg/ at $(CORE_DIR)/ffmpeg with
-# switch_build/{include,lib} populated. tico's ffmpeg repo IS that
-# layout — symlink it into place. The auto-cloned submodule reference
-# (if any) gets cleaned out first so we don't fight git over the
-# directory.
+# switch_build/{include,lib} populated — symlink the built tree into
+# place. The auto-cloned submodule reference (if any) gets cleaned
+# out first so we don't fight git over the directory.
 # ---------------------------------------------------------------------------
 if (NOT EXISTS ${_PSP}/ffmpeg/switch_build/lib/libavcodec.a)
     file(REMOVE_RECURSE ${_PSP}/ffmpeg)
@@ -116,7 +177,7 @@ if (NOT EXISTS ${_PSP}/ffmpeg/switch_build/lib/libavcodec.a)
         message(FATAL_ERROR
             "ppsspp: failed to symlink ${_PSP_FF} -> ${_PSP}/ffmpeg "
             "(rc=${_ln_rc}). Check that the FetchContent populate step "
-            "produced a complete tico-ppsspp-ffmpeg checkout.")
+            "produced a complete ppsspp-ffmpeg checkout.")
     endif()
 endif()
 

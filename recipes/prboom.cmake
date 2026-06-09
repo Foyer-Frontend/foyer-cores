@@ -73,6 +73,14 @@ set(_PRBOOM_COMM_C
     ${_PRBOOM_COMM}/file/file_path.c
     ${_PRBOOM_COMM}/file/file_path_io.c
     ${_PRBOOM_COMM}/time/rtime.c
+    # rpng / rjpeg + the trans_stream trio back the new u_png.c
+    # (PNG/JPEG-in-WAD textures) that came with upstream's UDMF /
+    # Heretic/Hexen work — mirror of Makefile.common's additions.
+    ${_PRBOOM_COMM}/formats/png/rpng.c
+    ${_PRBOOM_COMM}/formats/jpeg/rjpeg.c
+    ${_PRBOOM_COMM}/streams/trans_stream.c
+    ${_PRBOOM_COMM}/streams/trans_stream_zlib.c
+    ${_PRBOOM_COMM}/streams/trans_stream_pipe.c
 )
 
 set(_PRBOOM_MAD_C
@@ -115,6 +123,11 @@ target_compile_definitions(core_prboom PRIVATE
     SWITCH=1
     NDEBUG=1
     RARCH_INTERNAL
+    # Mirrors upstream COREDEFINES — trans_stream_zlib + rpng need
+    # the zlib code paths on. No -lz: deps/miniz ships a zlib.h shim
+    # and miniz.c provides the zlib-compatible symbols, exactly like
+    # upstream's Makefile (which links no real zlib either).
+    HAVE_ZLIB=1
 )
 
 # z_zone.h is force-included on every src TU per upstream's Makefile;
