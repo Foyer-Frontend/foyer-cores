@@ -121,6 +121,64 @@ jobs:
             test -f /work/mb/src/nouveau/vulkan/libnvk.a
             ls /work/mb/src/**/lib*.a | head -40'
 
+      - name: Merge loaderless libvulkan.a (tico layout)
+        run: |
+          # tico-dolphin links ${MESA_NVK_DIR}/src/nouveau/vulkan/
+          # libvulkan.a — a single merged loaderless archive — plus
+          # portlibs. Reproduce it: cross-compile switch-nvk's winsys
+          # shims (drm_shim = every drm*/nouveau ioctl over libnx nv;
+          # libc shim = open/mmap wraps consumers enable with
+          # -Wl,--wrap=...; compat = newlib gaps) and ar-MRI-merge
+          # them with libnvk.a + the support archives from the ICD
+          # link set + portlibs expat (consumers link z/zstd
+          # themselves, but nothing links expat for xmlconfig).
+          docker run --rm -v "$PWD/nvk:/work" -w /work switch-nvk-build bash -lc '
+            set -e
+            DKP=/opt/devkitpro
+            GCC=$DKP/devkitA64/bin/aarch64-none-elf-gcc
+            AR=$DKP/devkitA64/bin/aarch64-none-elf-ar
+            MB=/work/mb
+            OBJ=/tmp/shim-obj; mkdir -p $OBJ
+            ARCH="-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE"
+            INC="-I$DKP/libnx/include -I/opt/switch-cross-include -Imesa-25/include -Imesa-25/src/nouveau/drm -Iwinsys -Icompat"
+            DEFS="-D__SWITCH__ -D_GNU_SOURCE -D_DEFAULT_SOURCE -include /work/compat/switch_compat.h"
+            $GCC -c winsys/drm_shim.c         -o $OBJ/drm_shim.o         $ARCH $DEFS $INC -O2
+            $GCC -c winsys/switch_libc_shim.c -o $OBJ/switch_libc_shim.o $ARCH $DEFS $INC -O2
+            $GCC -c compat/compat.c           -o $OBJ/compat.o           $ARCH $DEFS $INC -O2
+            {
+              echo "CREATE $MB/src/nouveau/vulkan/libvulkan.a"
+              for a in \
+                $MB/src/nouveau/vulkan/libnvk.a \
+                $MB/src/nouveau/codegen/libnouveau_codegen.a \
+                $MB/src/util/libmesa_util.a $MB/src/util/libmesa_util_sse41.a \
+                $MB/src/util/blake3/libblake3.a $MB/src/c11/impl/libmesa_util_c11.a \
+                $MB/src/nouveau/compiler/libnak.a $MB/src/nouveau/compiler/libnak_rs.a \
+                $MB/src/compiler/rust/libcompiler_c_helpers.a \
+                $MB/src/nouveau/headers/libnvidia_headers_c.a \
+                $MB/src/nouveau/nil/liblibnil.a $MB/src/nouveau/nil/liblibnil_format_table.a \
+                $MB/src/compiler/nir/libnir.a $MB/src/compiler/libcompiler.a \
+                $MB/src/nouveau/mme/libnouveau_mme.a $MB/src/nouveau/winsys/libnouveau_ws.a \
+                $MB/src/vulkan/util/libvulkan_util.a $MB/src/compiler/spirv/libvtn.a \
+                $MB/src/util/libxmlconfig.a \
+                $DKP/portlibs/switch/lib/libexpat.a; do
+                echo "ADDLIB $a"
+              done
+              # WSI lib lives outside the ICD set but dolphin needs
+              # the VK_NN_vi_surface swapchain path.
+              if [ -f $MB/src/vulkan/wsi/libvulkan_wsi.a ]; then
+                echo "ADDLIB $MB/src/vulkan/wsi/libvulkan_wsi.a"
+              fi
+              if [ -f $MB/src/vulkan/runtime/libvulkan_runtime.a ]; then
+                echo "ADDLIB $MB/src/vulkan/runtime/libvulkan_runtime.a"
+              fi
+              echo "ADDMOD $OBJ/drm_shim.o"
+              echo "ADDMOD $OBJ/switch_libc_shim.o"
+              echo "ADDMOD $OBJ/compat.o"
+              echo "SAVE"
+              echo "END"
+            } | $AR -M
+            ls -la $MB/src/nouveau/vulkan/libvulkan.a'
+
       - name: Bake builder image (toolchain + mesa tree + build dir)
         run: |
           # Final image layers the patched Mesa source + the meson

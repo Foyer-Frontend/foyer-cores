@@ -58,6 +58,11 @@ jobs:
           set -o pipefail
           cd dolphin
           export MESA_NVK_DIR=/nvk-build
+          # switch-nvk's libc shim (merged into libvulkan.a) routes
+          # mesa's open/close/stat/lstat/mmap through libnx-aware
+          # wrappers — the wrap flags activate them. CMake folds
+          # LDFLAGS into CMAKE_EXE_LINKER_FLAGS at first configure.
+          export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           bash build_dolphin_standalone_nro.sh 2>&1 | tail -150
 
       - name: Upload NRO
