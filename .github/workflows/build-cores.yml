@@ -475,6 +475,22 @@ jobs:
               ext/naett ext/nanosvg ext/miniupnp ext/rapidjson \
               ext/aemu_postoffice
 
+      - name: Apply tico submodule patches
+        if: steps.gate.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          # gitPatches/<sub>.patch fix newlib gaps in the submodules
+          # (miniupnp sys/un.h, cpu_features, glslang, aemu) — tico
+          # applies them out-of-band; their build script doesn't.
+          # ext_foo.patch -> ext/foo, ffmpeg.patch -> ffmpeg.
+          cd ppsspp
+          for p in gitPatches/*.patch; do
+            base=$(basename "$p" .patch)
+            dir="${base/ext_/ext/}"
+            [ -d "$dir" ] || { echo "skip $p (no $dir)"; continue; }
+            patch -p1 -d "$dir" -N < "$p" && echo "applied $p -> $dir"
+          done
+
       - name: Build Switch FFmpeg (switch_build prefix)
         if: steps.gate.outputs.should_build == 'true'
         shell: bash
