@@ -426,8 +426,82 @@ jobs:
           name: foyer-dolphin
           path: out/foyer-dolphin.nro
 
+  # Standalone PPSSPP — same pattern as dolphin: built from
+  # Foyer-Frontend/foyer-ppsspp (tico's NX port w/ foyer overlay
+  # styling) inside the switch-nvk-builder image. FFmpeg builds
+  # from the hrydgard submodule with the switch_build prefix
+  # (their gitPatches/ffmpeg.patch recipe).
+  ppsspp_standalone:
+    needs: plan
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/foyer-frontend/switch-nvk-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Probe foyer-ppsspp + decide skip-vs-build
+        id: gate
+        run: |
+          set -e
+          git config --global --add safe.directory '*'
+          head=$(git ls-remote https://github.com/Foyer-Frontend/foyer-ppsspp.git HEAD | cut -f1)
+          prev=$(curl -fsSL "${{ needs.plan.outputs.prev_manifest_url }}" 2>/dev/null \
+                 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(next((c.get("upstream_fingerprint","") for c in d.get("cores",[]) if c.get("name")=="ppsspp-standalone"),""))' \
+                 2>/dev/null || echo "")
+          force='${{ inputs.force_rebuild_all }}'
+          if [ "$head" != "$prev" ] || [ "$force" = "true" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "skip: fork unchanged ($head)"
+          fi
+
+      - name: Clone foyer-ppsspp
+        if: steps.gate.outputs.should_build == 'true'
+        run: |
+          git clone --depth 1 https://github.com/Foyer-Frontend/foyer-ppsspp.git ppsspp
+          cd ppsspp
+          git submodule update --init --depth 1 \
+              ffmpeg ext/armips ext/glslang ext/SPIRV-Cross ext/cpu_features \
+              ext/libchdr ext/lua ext/zstd ext/rcheevos ext/freetype \
+              ext/naett ext/nanosvg ext/miniupnp ext/rapidjson \
+              ext/libpng17 ext/libzip ext/snappy ext/udis86 \
+              ext/aemu_postoffice 2>&1 | tail -3 || \
+          git submodule update --init --recursive --depth 1 2>&1 | tail -3
+
+      - name: Build Switch FFmpeg (switch_build prefix)
+        if: steps.gate.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -e
+          cd ppsspp/ffmpeg
+          source /opt/devkitpro/switchvars.sh
+          sed 's|--prefix=\$PORTLIBS_PREFIX|--prefix=$(pwd)/switch_build|' switch.sh > switch-local.sh
+          bash switch-local.sh 2>&1 | tail -10
+          test -f switch_build/lib/libavcodec.a
+
+      - name: Build foyer PPSSPP nro
+        if: steps.gate.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          cd ppsspp
+          export MESA_NVK_DIR=/nvk-build
+          export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
+          bash build_ppsspp_tico_nro.sh 2>&1 | tail -80
+          mkdir -p ../out
+          cp build_switch_tico/tico-ppsspp.nro ../out/foyer-ppsspp-standalone.nro
+
+      - name: Upload artefact
+        if: steps.gate.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: foyer-ppsspp-standalone
+          path: out/foyer-ppsspp-standalone.nro
+
   release:
-    needs: [plan, build, dolphin]
+    needs: [plan, build, dolphin, ppsspp_standalone]
     # always(): publish whatever DID build even if one of the matrix jobs
     # failed. fail-fast is off so the rest of the matrix runs regardless.
     # The artefact bundle + previous manifest determine what makes it in.

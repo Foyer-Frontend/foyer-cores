@@ -112,7 +112,10 @@ def main() -> int:
     # they build in their own workflow job from a sibling repo and land
     # in --artifacts-dir like any matrix artefact. Fingerprint = the
     # source repo's HEAD sha so the skip logic still has a signal.
-    standalone = {"dolphin": "Foyer-Frontend/foyer-dolphin"}
+    standalone = {
+        "dolphin": "Foyer-Frontend/foyer-dolphin",
+        "ppsspp-standalone": "Foyer-Frontend/foyer-ppsspp",
+    }
 
     names = [r.stem for r in sorted(args.recipes_dir.glob("*.cmake"))]
     names += sorted(standalone)
