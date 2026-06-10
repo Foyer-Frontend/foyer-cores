@@ -19,6 +19,10 @@ on:
         description: "ticohq/tico-dolphin ref to build"
         required: false
         default: "master"
+      autoboot_rom:
+        description: "TEST ONLY: bake a fallback rom path used when no argv is passed (for emulators that can't pass NRO args)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -63,6 +67,37 @@ jobs:
           sed -i 's|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a\n  ${DEVKITPRO}/portlibs/switch/lib/libEGL.a\n  ${DEVKITPRO}/portlibs/switch/lib/libglapi.a\n  ${DEVKITPRO}/portlibs/switch/lib/libdrm_nouveau.a|' \
               dolphin/Source/Core/DolphinNX/CMakeLists.txt
           grep -A 4 'libSDL2.a' dolphin/Source/Core/DolphinNX/CMakeLists.txt | head -6
+
+      - name: Bake autoboot rom (test builds only)
+        if: inputs.autoboot_rom != ''
+        shell: bash
+        run: |
+          # GetLaunchRomPath returns nullopt without argv and the app
+          # exits — fine on hardware (foyer chain-launch passes the
+          # rom), but emulators like Ryujinx can't pass NRO args.
+          # Patch the final `return std::nullopt;` of GetLaunchRomPath
+          # to fall back to a baked path when the file exists.
+          ROM="${{ inputs.autoboot_rom }}"
+          python3 - "$ROM" <<'EOF'
+          import sys, re
+          rom = sys.argv[1]
+          p = 'dolphin/Source/Core/DolphinNX/main.cpp'
+          src = open(p).read()
+          marker = "    return std::string(arg);\n  }\n\n  return std::nullopt;\n}"
+          repl = (
+            "    return std::string(arg);\n  }\n\n"
+            "  {\n"
+            f"    const char* fallback = \"{rom}\";\n"
+            "    struct stat st{};\n"
+            "    if (::stat(fallback, &st) == 0)\n"
+            "      return std::string(fallback);\n"
+            "  }\n"
+            "  return std::nullopt;\n}"
+          )
+          assert marker in src, 'GetLaunchRomPath tail not found'
+          open(p, 'w').write(src.replace(marker, repl, 1))
+          print('autoboot baked:', rom)
+          EOF
 
       - name: Build dolphin-nx
         shell: bash
