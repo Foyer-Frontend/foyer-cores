@@ -473,7 +473,7 @@ jobs:
               ext/armips ext/glslang ext/SPIRV-Cross ext/cpu_features \
               ext/libchdr ext/lua ext/zstd ext/rcheevos ext/freetype \
               ext/naett ext/nanosvg ext/miniupnp ext/rapidjson \
-              ext/aemu_postoffice
+              ext/aemu_postoffice ext/OpenXR-SDK
 
       - name: Apply tico submodule patches
         if: steps.gate.outputs.should_build == 'true'
