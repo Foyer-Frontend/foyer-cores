@@ -70,6 +70,21 @@ def upstream_fingerprint(recipes_dir: Path, name: str) -> str:
         return ""
 
 
+def repo_head_fingerprint(repo: str) -> str:
+    """HEAD sha of a standalone core's source repo — fills the
+    upstream_fingerprint slot for cores that have no recipe."""
+    try:
+        out = subprocess.check_output(
+            ["git", "ls-remote", f"https://github.com/{repo}.git", "HEAD"],
+            timeout=60,
+        ).decode()
+        return out.split()[0] if out.split() else ""
+    except Exception as exc:
+        print(f"build_manifest: head fingerprint for {repo} failed: {exc}",
+              file=sys.stderr)
+        return ""
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--tag", required=True)
@@ -93,8 +108,16 @@ def main() -> int:
     cores_out: list[dict[str, Any]] = []
     counts = {"fresh": 0, "inherit": 0, "drop": 0}
 
-    for recipe in sorted(args.recipes_dir.glob("*.cmake")):
-        name = recipe.stem
+    # Standalone (non-recipe) cores. These have no recipes/<name>.cmake —
+    # they build in their own workflow job from a sibling repo and land
+    # in --artifacts-dir like any matrix artefact. Fingerprint = the
+    # source repo's HEAD sha so the skip logic still has a signal.
+    standalone = {"dolphin": "Foyer-Frontend/foyer-dolphin"}
+
+    names = [r.stem for r in sorted(args.recipes_dir.glob("*.cmake"))]
+    names += sorted(standalone)
+
+    for name in names:
         # Skip our build-helper cmake — those aren't cores.
         if name.endswith("_stubs") or name in {"core_recipe", "rcheevos"}:
             continue
@@ -108,7 +131,11 @@ def main() -> int:
                 "size": artifact.stat().st_size,
                 "sha256": sum256,
                 "url": f"https://github.com/{args.repo}/releases/download/{args.tag}/{artifact.name}",
-                "upstream_fingerprint": upstream_fingerprint(args.recipes_dir, name),
+                "upstream_fingerprint": (
+                    repo_head_fingerprint(standalone[name])
+                    if name in standalone
+                    else upstream_fingerprint(args.recipes_dir, name)
+                ),
                 "recipe_sha": recipe_blob_sha(args.recipes_dir, name),
                 "last_built_tag": args.tag,
             }

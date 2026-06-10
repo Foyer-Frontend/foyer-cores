@@ -362,8 +362,72 @@ jobs:
           name: foyer-${{ matrix.core }}
           path: out/foyer-${{ matrix.core }}.nro
 
+  # Standalone Dolphin — no recipe; builds from Foyer-Frontend/
+  # foyer-dolphin inside the switch-nvk-builder image (Mesa NVK
+  # Vulkan, see build-nvk-image.yml). Same skip semantics as the
+  # matrix: rebuild only when the fork's HEAD moved past the
+  # fingerprint recorded in the previous manifest.
+  dolphin:
+    needs: plan
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/foyer-frontend/switch-nvk-builder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Probe foyer-dolphin + decide skip-vs-build
+        id: gate
+        run: |
+          set -e
+          git config --global --add safe.directory '*'
+          head=$(git ls-remote https://github.com/Foyer-Frontend/foyer-dolphin.git HEAD | cut -f1)
+          prev=$(curl -fsSL "${{ needs.plan.outputs.prev_manifest_url }}" 2>/dev/null \
+                 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(next((c.get("upstream_fingerprint","") for c in d.get("cores",[]) if c.get("name")=="dolphin"),""))' \
+                 2>/dev/null || echo "")
+          force='${{ inputs.force_rebuild_all }}'
+          if [ "$head" != "$prev" ] || [ "$force" = "true" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "build: head=$head prev=$prev"
+          else
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "skip: fork unchanged ($head)"
+          fi
+
+      - name: Clone foyer-dolphin
+        if: steps.gate.outputs.should_build == 'true'
+        run: |
+          git clone --depth 1 https://github.com/Foyer-Frontend/foyer-dolphin.git dolphin
+          cd dolphin && git submodule update --init --recursive --depth 1
+
+      - name: Patch NX link block (SDL2 EGL deps)
+        if: steps.gate.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          sed -i 's|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a|${DEVKITPRO}/portlibs/switch/lib/libSDL2.a\n  ${DEVKITPRO}/portlibs/switch/lib/libEGL.a\n  ${DEVKITPRO}/portlibs/switch/lib/libglapi.a\n  ${DEVKITPRO}/portlibs/switch/lib/libdrm_nouveau.a|' \
+              dolphin/Source/Core/DolphinNX/CMakeLists.txt
+
+      - name: Build dolphin-nx
+        if: steps.gate.outputs.should_build == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          cd dolphin
+          export MESA_NVK_DIR=/nvk-build
+          export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
+          bash build_dolphin_standalone_nro.sh 2>&1 | tail -60
+          mkdir -p ../out
+          cp build_nx_standalone/dolphin.nro ../out/foyer-dolphin.nro
+
+      - name: Upload artefact
+        if: steps.gate.outputs.should_build == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: foyer-dolphin
+          path: out/foyer-dolphin.nro
+
   release:
-    needs: [plan, build]
+    needs: [plan, build, dolphin]
     # always(): publish whatever DID build even if one of the matrix jobs
     # failed. fail-fast is off so the rest of the matrix runs regardless.
     # The artefact bundle + previous manifest determine what makes it in.
