@@ -462,13 +462,18 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Foyer-Frontend/foyer-ppsspp.git ppsspp
           cd ppsspp
+          # Exact submodule list from .gitmodules minus the fat
+          # non-build ones (pspautotests test suite, SDL/macOS,
+          # ios/MoltenVK, OpenXR, debugger assets, discord,
+          # adrenotools). rcheevos lives at BOTH root rcheevos/ and
+          # ext/rcheevos — the NX build consumes the root one.
+          set -e
           git submodule update --init --depth 1 \
-              ffmpeg ext/armips ext/glslang ext/SPIRV-Cross ext/cpu_features \
+              rcheevos ffmpeg libretro/libretro-common \
+              ext/armips ext/glslang ext/SPIRV-Cross ext/cpu_features \
               ext/libchdr ext/lua ext/zstd ext/rcheevos ext/freetype \
               ext/naett ext/nanosvg ext/miniupnp ext/rapidjson \
-              ext/libpng17 ext/libzip ext/snappy ext/udis86 \
-              ext/aemu_postoffice 2>&1 | tail -3 || \
-          git submodule update --init --recursive --depth 1 2>&1 | tail -3
+              ext/aemu_postoffice
 
       - name: Build Switch FFmpeg (switch_build prefix)
         if: steps.gate.outputs.should_build == 'true'
