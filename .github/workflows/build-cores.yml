@@ -508,6 +508,10 @@ jobs:
         run: |
           cd ppsspp
           export MESA_NVK_DIR=/nvk-build
+          # The build script wires this into -DSWITCH_VULKAN_LIBRARY;
+          # without it the link has no Vulkan entry points
+          # (vkGetInstanceProcAddr undefined).
+          export SWITCH_VULKAN_LIBRARY=/nvk-build/src/nouveau/vulkan/libvulkan.a
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           # Full log to file — piping make output through tail eats
           # the actual error under -j parallelism.
