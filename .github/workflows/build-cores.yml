@@ -506,11 +506,17 @@ jobs:
         if: steps.gate.outputs.should_build == 'true'
         shell: bash
         run: |
-          set -o pipefail
           cd ppsspp
           export MESA_NVK_DIR=/nvk-build
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
-          bash build_ppsspp_tico_nro.sh 2>&1 | tail -80
+          # Full log to file — piping make output through tail eats
+          # the actual error under -j parallelism.
+          if ! bash build_ppsspp_tico_nro.sh > ../build.log 2>&1; then
+            echo '=== build failed — error context ==='
+            grep -nE "error:|Error 1|fatal error|undefined reference" -B 2 ../build.log | tail -80
+            exit 1
+          fi
+          tail -15 ../build.log
           mkdir -p ../out
           cp build_switch_tico/tico-ppsspp.nro ../out/foyer-ppsspp-standalone.nro
 
