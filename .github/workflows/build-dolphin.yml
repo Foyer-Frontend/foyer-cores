@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       dolphin_ref:
-        description: "ticohq/tico-dolphin ref to build"
+        description: "Foyer-Frontend/foyer-dolphin ref to build"
         required: false
         default: "master"
       autoboot_rom:
@@ -41,7 +41,7 @@ jobs:
         run: |
           git config --global --add safe.directory '*'
           git clone --depth 1 --branch "${{ inputs.dolphin_ref }}" \
-              https://github.com/ticohq/tico-dolphin.git dolphin
+              https://github.com/Foyer-Frontend/foyer-dolphin.git dolphin
           cd dolphin
           echo "dolphin_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
           # Full recursive init — Dolphin's externals nest (e.g.
