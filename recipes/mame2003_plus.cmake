@@ -12,7 +12,9 @@ include(FetchContent)
 FetchContent_Declare(libretro_mame2003_plus
     GIT_REPOSITORY https://github.com/libretro/mame2003-plus-libretro.git
     GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    GIT_SHALLOW    TRUE
+    GIT_CONFIG     "core.autocrlf=false;core.eol=lf"
+    UPDATE_DISCONNECTED FALSE)
 FetchContent_GetProperties(libretro_mame2003_plus)
 if (NOT libretro_mame2003_plus_POPULATED)
     FetchContent_Populate(libretro_mame2003_plus)
