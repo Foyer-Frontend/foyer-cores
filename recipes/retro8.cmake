@@ -5,7 +5,8 @@ include(FetchContent)
 FetchContent_Declare(libretro_retro8
     GIT_REPOSITORY https://github.com/libretro/retro8.git
     GIT_TAG        master
-    GIT_SHALLOW    TRUE)
+    GIT_SHALLOW    TRUE
+    GIT_CONFIG     "http.sslVerify=false")
 # Don't pull retro8's own CMakeLists.txt — it expects desktop SDL +
 # standalone executable wiring. We just need the source tree.
 FetchContent_GetProperties(libretro_retro8)
