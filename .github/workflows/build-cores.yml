@@ -515,21 +515,42 @@ jobs:
           export MESA_NVK_DIR=/nvk-build
           # The build script wires this into -DSWITCH_VULKAN_LIBRARY;
           # without it the link has no Vulkan entry points
-          # (vkGetInstanceProcAddr undefined). Fall back via find
-          # when the image layout moves.
-          found=$(find /nvk-build -name libvulkan.a 2>/dev/null | head -n1)
+          # (vkGetInstanceProcAddr undefined). The merged loaderless
+          # archive lives at src/nouveau/vulkan/libvulkan.a; generic
+          # find may return a smaller WSI/runtime lib first.
+          found=""
+          if [ -f /nvk-build/src/nouveau/vulkan/libvulkan.a ]; then
+            found=/nvk-build/src/nouveau/vulkan/libvulkan.a
+          elif [ -f /nvk-mesa/src/nouveau/vulkan/libvulkan.a ]; then
+            found=/nvk-mesa/src/nouveau/vulkan/libvulkan.a
+          else
+            found=$(find /nvk-build /nvk-mesa /work/mb -name libvulkan.a -path "*/src/nouveau/vulkan/libvulkan.a" 2>/dev/null | head -n1)
+            if [ -z "$found" ]; then
+              found=$(find /nvk-build /nvk-mesa /work/mb -name libvulkan.a 2>/dev/null | head -n1)
+            fi
+          fi
           if [ -n "$found" ]; then
             export SWITCH_VULKAN_LIBRARY="$found"
-            echo "SWITCH_VULKAN_LIBRARY: $found"
+            echo "SWITCH_VULKAN_LIBRARY: $found ($(stat -c%s "$found" 2>/dev/null || stat -f%z "$found" 2>/dev/null || echo unknown) bytes)"
+            # Prove the archive actually provides the missing symbol before wasting 8 min of compile
+            if ! nm "$found" 2>/dev/null | grep -q vkGetInstanceProcAddr; then
+              echo "ERROR: $found does not contain vkGetInstanceProcAddr — listing candidates:"
+              find /nvk-build /nvk-mesa -name libvulkan.a -exec sh -c 'echo "--- $1 ($(stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null))"; nm "$1" 2>/dev/null | grep -q vkGetInstanceProcAddr && echo "  HAS vkGetInstanceProcAddr" || echo "  missing vkGetInstanceProcAddr"' _ {} \; 2>/dev/null | head -n 30
+            fi
           else
+            echo "WARNING: no libvulkan.a found — falling back to /nvk-build/src/nouveau/vulkan/libvulkan.a"
             export SWITCH_VULKAN_LIBRARY=/nvk-build/src/nouveau/vulkan/libvulkan.a
           fi
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           # Full log to file — piping make output through tail eats
           # the actual error under -j parallelism.
           if ! bash build_ppsspp_tico_nro.sh > ../build.log 2>&1; then
-            echo '=== build failed — error context ==='
+            echo '=== build failed — dumping NVK + error context ==='
+            grep -E "NVK:|SWITCH_VULKAN" ../build.log | head -n 20 || true
+            echo '--- linker errors ---'
             grep -nE "error:|Error 1|fatal error|undefined reference" -B 2 ../build.log | tail -80
+            echo '--- tail ---'
+            tail -40 ../build.log
             exit 1
           fi
           tail -15 ../build.log
