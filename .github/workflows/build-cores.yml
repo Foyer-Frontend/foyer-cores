@@ -562,17 +562,21 @@ jobs:
             export SWITCH_VULKAN_LIBRARY="$found"
             echo "SWITCH_VULKAN_LIBRARY: $found ($(stat -c%s "$found" 2>/dev/null || stat -f%z "$found" 2>/dev/null || echo unknown) bytes) HAS vkGetInstanceProcAddr"
           else
-            for cand in /nvk-build/src/nouveau/vulkan/libvulkan.a /nvk-mesa/src/nouveau/vulkan/libvulkan.a; do
-              if [ -f "$cand" ]; then found="$cand"; break; fi
-            done
-            [ -z "$found" ] && found=$(find /nvk-build /nvk-mesa /work/mb -name libvulkan.a 2>/dev/null | head -n1)
-            [ -z "$found" ] && found=/nvk-build/src/nouveau/vulkan/libvulkan.a
-            export SWITCH_VULKAN_LIBRARY="$found"
-            echo "SWITCH_VULKAN_LIBRARY: $found ($(stat -c%s "$found" 2>/dev/null || stat -f%z "$found" 2>/dev/null || echo unknown) bytes) MISSING vkGetInstanceProcAddr"
-            echo "--- full scan for HAS (all .a) ---"
-            find /nvk-build /nvk-mesa -name "*.a" 2>/dev/null | head -n 20 | while read -r f; do
-              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then echo "HAS $f"; else echo "miss $f"; fi
+            echo "No HAS archive found — leaving SWITCH_VULKAN_LIBRARY unset to use devkitPro fallback (may still fail but will show find_library path)"
+            echo "--- diagnostics: all .a under /nvk-build (first 20) ---"
+            find /nvk-build -name "*.a" 2>/dev/null | head -n 20 | while read -r f; do
+              sz=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo ?)
+              has=$(nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr && echo HAS || echo miss)
+              # also try aarch64 nm
+              has2=$(aarch64-none-elf-nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr && echo HAS2 || echo miss2)
+              echo "$has/$has2 $f ($sz)"
             done | head -n 30
+            echo "--- diagnostics: /opt/devkitpro ---"
+            find /opt/devkitpro -name "*.a" 2>/dev/null | head -n 20 | while read -r f; do
+              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then echo "HAS $f"; else echo "miss $f"; fi
+            done | head -n 20
+            # Do not export SWITCH_VULKAN_LIBRARY — let build script use find_library fallback
+            unset SWITCH_VULKAN_LIBRARY || true
           fi
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           # Full log to file — piping make output through tail eats
