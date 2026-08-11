@@ -518,37 +518,50 @@ jobs:
         run: |
           cd ppsspp
           export MESA_NVK_DIR=/nvk-build
-          # The build script wires this into -DSWITCH_VULKAN_LIBRARY;
-          # without it the link has no Vulkan entry points
-          # (vkGetInstanceProcAddr undefined). CI image's
-          # /nvk-build/src/nouveau/vulkan/libvulkan.a is 73M but
-          # lacks vkGetInstanceProcAddr (loader vs ICD split) — local
-          # nvk-local does have it. Search every .a for the symbol.
+          # Diagnostic: list NVK layout before search (helps when image changes)
+          echo "--- NVK layout diagnostic ---"
+          ls -lh /nvk-build/src/nouveau/vulkan/libvulkan.a 2>&1 | head -n 3 || true
+          ls -lh /nvk-mesa/src/nouveau/vulkan/libvulkan.a 2>&1 | head -n 3 || true
+          echo "nm check for merged libvulkan.a:"
+          nm /nvk-build/src/nouveau/vulkan/libvulkan.a 2>&1 | grep -q vkGetInstanceProcAddr && echo "  merged HAS vkGetInstanceProcAddr" || echo "  merged MISSING vkGetInstanceProcAddr"
+          echo "--- searching for HAS archive ---"
+          # Use +e for the search — set -e + pipefail would abort on nm/find non-zero
+          set +e
+          set +o pipefail
           found=""
-          # First, try the exact merged path but only if it HAS the symbol
           for cand in /nvk-build/src/nouveau/vulkan/libvulkan.a /nvk-mesa/src/nouveau/vulkan/libvulkan.a; do
             if [ -f "$cand" ] && nm "$cand" 2>/dev/null | grep -q vkGetInstanceProcAddr; then
-              found="$cand"; break
+              found="$cand"; echo "found via direct HAS check: $cand"; break
             fi
           done
           if [ -z "$found" ]; then
-            # Search any libvulkan.a that HAS the symbol
-            found=$(find /nvk-build /nvk-mesa /work/mb -name "libvulkan*.a" 2>/dev/null | while read -r f; do
-              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then echo "$f"; break; fi
-            done)
+            tmp=$(find /nvk-build /nvk-mesa /work/mb -name "libvulkan*.a" 2>/dev/null | head -n 20)
+            echo "libvulkan*.a candidates: $tmp"
+            for f in $tmp; do
+              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then found="$f"; echo "found via libvulkan*.a HAS: $f"; break; fi
+            done
           fi
           if [ -z "$found" ]; then
-            # Last resort: any .a with the symbol (devkitPro loader, etc.)
-            found=$(find /nvk-build /nvk-mesa /opt/devkitpro -name "*.a" 2>/dev/null | while read -r f; do
-              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then echo "$f"; break; fi
-            done)
+            tmp=$(find /nvk-build /nvk-mesa -name "*.a" 2>/dev/null | head -n 30)
+            echo "all *.a count: $(echo "$tmp" | wc -w) first 5: $(echo "$tmp" | head -n 5 | tr '\n' ' ')"
+            for f in $tmp; do
+              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then found="$f"; echo "found via any *.a HAS: $f"; break; fi
+            done
           fi
+          if [ -z "$found" ]; then
+            tmp=$(find /opt/devkitpro -name "*.a" 2>/dev/null | head -n 20)
+            echo "devkitPro *.a candidates: $tmp"
+            for f in $tmp; do
+              if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then found="$f"; echo "found via devkitPro HAS: $f"; break; fi
+            done
+          fi
+          echo "final found=[$found]"
+          set -e
+          set -o pipefail
           if [ -n "$found" ]; then
             export SWITCH_VULKAN_LIBRARY="$found"
             echo "SWITCH_VULKAN_LIBRARY: $found ($(stat -c%s "$found" 2>/dev/null || stat -f%z "$found" 2>/dev/null || echo unknown) bytes) HAS vkGetInstanceProcAddr"
           else
-            # Fallback: use the merged path even though it lacks the symbol,
-            # but also dump diagnostics so we can see all candidates
             for cand in /nvk-build/src/nouveau/vulkan/libvulkan.a /nvk-mesa/src/nouveau/vulkan/libvulkan.a; do
               if [ -f "$cand" ]; then found="$cand"; break; fi
             done
@@ -556,10 +569,10 @@ jobs:
             [ -z "$found" ] && found=/nvk-build/src/nouveau/vulkan/libvulkan.a
             export SWITCH_VULKAN_LIBRARY="$found"
             echo "SWITCH_VULKAN_LIBRARY: $found ($(stat -c%s "$found" 2>/dev/null || stat -f%z "$found" 2>/dev/null || echo unknown) bytes) MISSING vkGetInstanceProcAddr"
-            echo "--- scanning all candidates for HAS ---"
-            find /nvk-build /nvk-mesa /opt/devkitpro -name "*.a" 2>/dev/null | head -n 30 | while read -r f; do
+            echo "--- full scan for HAS (all .a) ---"
+            find /nvk-build /nvk-mesa -name "*.a" 2>/dev/null | head -n 20 | while read -r f; do
               if nm "$f" 2>/dev/null | grep -q vkGetInstanceProcAddr; then echo "HAS $f"; else echo "miss $f"; fi
-            done | head -n 40
+            done | head -n 30
           fi
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           # Full log to file — piping make output through tail eats
