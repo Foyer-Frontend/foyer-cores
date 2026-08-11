@@ -98,24 +98,8 @@ file(GLOB _SWAN_LR_SRC ${_SWAN_SRC}/libretro/*.cpp)
 # Vendored libretro-common subset — enough for swanstation's includes
 # (compat/strl.h, file/file_path.h, streams/file_stream.h, etc.).
 # ---------------------------------------------------------------------------
-set(_SWAN_LRC_SRC
-    ${_SWAN_LRC}/compat/compat_posix_string.c
-    ${_SWAN_LRC}/compat/compat_snprintf.c
-    ${_SWAN_LRC}/compat/compat_strcasestr.c
-    ${_SWAN_LRC}/compat/compat_strl.c
-    ${_SWAN_LRC}/compat/fopen_utf8.c
-    ${_SWAN_LRC}/encodings/encoding_utf.c
-    ${_SWAN_LRC}/file/file_path.c
-    ${_SWAN_LRC}/file/file_path_io.c
-    ${_SWAN_LRC}/file/retro_dirent.c
-    ${_SWAN_LRC}/lists/dir_list.c
-    ${_SWAN_LRC}/lists/string_list.c
-    ${_SWAN_LRC}/streams/file_stream.c
-    ${_SWAN_LRC}/streams/file_stream_transforms.c
-    ${_SWAN_LRC}/string/stdstring.c
-    ${_SWAN_LRC}/time/rtime.c
-    ${_SWAN_LRC}/vfs/vfs_implementation.c
-)
+file(GLOB_RECURSE _SWAN_LRC_EXTRA "${_SWAN_LRC}/*.c")
+set(_SWAN_LRC_SRC ${_SWAN_LRC_EXTRA})
 
 # ---------------------------------------------------------------------------
 # Vendored deps that are tiny and self-contained: stb_image (used by
