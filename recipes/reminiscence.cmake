@@ -13,8 +13,7 @@ set(_RE    ${libretro_reminiscence_SOURCE_DIR})
 set(_RE_S  ${_RE}/src)
 set(_RE_LR ${_RE}/3rdparty/libretro-common)
 
-add_library(core_reminiscence STATIC
-    ${_RE}/3rdparty/libco/libco.c
+set(_RE_CORE_SRC
     ${_RE_S}/unpack.c
     ${_RE_S}/collision.cpp
     ${_RE_S}/cutscene.cpp
@@ -45,11 +44,16 @@ add_library(core_reminiscence STATIC
     ${_RE_LR}/time/rtime.c
     ${_RE_LR}/vfs/vfs_implementation.c
 )
+# libco was removed upstream (3rdparty/libco gone) – guard with EXISTS
+if (EXISTS "${_RE}/3rdparty/libco/libco.c")
+    list(APPEND _RE_CORE_SRC ${_RE}/3rdparty/libco/libco.c)
+endif()
+foyer_filter_existing_sources(_RE_FILTERED ${_RE_CORE_SRC})
+add_library(core_reminiscence STATIC ${_RE_FILTERED})
 
 target_include_directories(core_reminiscence PUBLIC
     ${_RE_S}
     ${_RE}/3rdparty
-    ${_RE}/3rdparty/libco
     ${_RE_LR}/include
 )
 

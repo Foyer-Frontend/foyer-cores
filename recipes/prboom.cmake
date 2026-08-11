@@ -52,7 +52,9 @@ file(GLOB _PRBOOM_CORE_C
     "${_PRBOOM_SRC}/*.c"
     "${_PRBOOM_SRC}/heretic/*.c"
     "${_PRBOOM_SRC}/hexen/*.c")
-list(APPEND _PRBOOM_CORE_C ${_PRBOOM_MINIZ}/miniz.c)
+if (EXISTS "${_PRBOOM_MINIZ}/miniz.c")
+    list(APPEND _PRBOOM_CORE_C ${_PRBOOM_MINIZ}/miniz.c)
+endif()
 
 set(_PRBOOM_LR_C
     ${_PRBOOM_LR}/libretro.c
@@ -96,12 +98,9 @@ set(_PRBOOM_MAD_C
     ${_PRBOOM_MAD}/timer.c
 )
 
-add_library(core_prboom STATIC
-    ${_PRBOOM_CORE_C}
-    ${_PRBOOM_LR_C}
-    ${_PRBOOM_COMM_C}
-    ${_PRBOOM_MAD_C}
-)
+set(_PRBOOM_ALL_SRC ${_PRBOOM_CORE_C} ${_PRBOOM_LR_C} ${_PRBOOM_COMM_C} ${_PRBOOM_MAD_C})
+foyer_filter_existing_sources(_PRBOOM_FILTERED ${_PRBOOM_ALL_SRC})
+add_library(core_prboom STATIC ${_PRBOOM_FILTERED})
 
 target_include_directories(core_prboom PUBLIC
     ${_PRBOOM}

@@ -19,7 +19,17 @@ set(_PF_CD ${_PF_M}/cdrom)
 set(_PF_LR ${_PF}/libretro-common)
 set(_PF_DP ${_PF}/deps)
 
+# lzma/zstd version bumps: use glob candidates
+file(GLOB _PF_LZMA_CAND "${_PF_DP}/lzma-*/src/Alloc.c")
+if (_PF_LZMA_CAND)
+    get_filename_component(_PF_LZMA_DIR "${_PF_LZMA_CAND}" DIRECTORY)
+    get_filename_component(_PF_LZMA_DIR "${_PF_LZMA_DIR}" DIRECTORY)
+else()
+    set(_PF_LZMA_DIR ${_PF_DP}/lzma-19.00)
+endif()
+
 set(_PF_CXX
+    ${_PF}/libretro.c
     ${_PF}/libretro.cpp
     ${_PF_E}/pcecd.cpp
     ${_PF_E}/pcecd_drive.cpp
@@ -71,16 +81,16 @@ set(_PF_C
     ${_PF_M}/tremor/synthesis.c
     ${_PF_M}/tremor/vorbisfile.c
     ${_PF_M}/tremor/window.c
-    # libchdr + zlib + zstd + lzma
-    ${_PF_DP}/lzma-19.00/src/Alloc.c
-    ${_PF_DP}/lzma-19.00/src/Bra86.c
-    ${_PF_DP}/lzma-19.00/src/BraIA64.c
-    ${_PF_DP}/lzma-19.00/src/CpuArch.c
-    ${_PF_DP}/lzma-19.00/src/Delta.c
-    ${_PF_DP}/lzma-19.00/src/LzFind.c
-    ${_PF_DP}/lzma-19.00/src/Lzma86Dec.c
-    ${_PF_DP}/lzma-19.00/src/LzmaDec.c
-    ${_PF_DP}/lzma-19.00/src/LzmaEnc.c
+    # libchdr + zlib + zstd + lzma (versioned dir via _PF_LZMA_DIR)
+    ${_PF_LZMA_DIR}/src/Alloc.c
+    ${_PF_LZMA_DIR}/src/Bra86.c
+    ${_PF_LZMA_DIR}/src/BraIA64.c
+    ${_PF_LZMA_DIR}/src/CpuArch.c
+    ${_PF_LZMA_DIR}/src/Delta.c
+    ${_PF_LZMA_DIR}/src/LzFind.c
+    ${_PF_LZMA_DIR}/src/Lzma86Dec.c
+    ${_PF_LZMA_DIR}/src/LzmaDec.c
+    ${_PF_LZMA_DIR}/src/LzmaEnc.c
     ${_PF_DP}/libchdr/src/libchdr_bitstream.c
     ${_PF_DP}/libchdr/src/libchdr_cdrom.c
     ${_PF_DP}/libchdr/src/libchdr_chd.c
@@ -121,7 +131,9 @@ set(_PF_C
     ${_PF_LR}/time/rtime.c
 )
 
-add_library(core_mednafen_pce_fast STATIC ${_PF_CXX} ${_PF_C})
+set(_PF_ALL_SRC ${_PF_CXX} ${_PF_C})
+foyer_filter_existing_sources(_PF_FILTERED ${_PF_ALL_SRC})
+add_library(core_mednafen_pce_fast STATIC ${_PF_FILTERED})
 
 target_include_directories(core_mednafen_pce_fast PUBLIC
     ${_PF}
@@ -131,7 +143,7 @@ target_include_directories(core_mednafen_pce_fast PUBLIC
     ${_PF_M}/hw_cpu
     ${_PF_M}/hw_misc
     ${_PF_LR}/include
-    ${_PF_DP}/lzma-19.00/include
+    ${_PF_LZMA_DIR}/include
     ${_PF_DP}/libchdr/include
     ${_PF_DP}/zstd/lib
     ${_PF_DP}/zlib-1.2.11

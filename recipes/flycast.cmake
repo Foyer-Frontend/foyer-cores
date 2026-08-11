@@ -262,16 +262,26 @@ set(_FC_LIBRETRO_SRC
 )
 
 # libretro-common compat layer (subset Makefile.common pulls).
+# Expanded to cover filestream/path symbols referenced by libretro.cpp
 set(_FC_COMM_SRC
     ${_FC_COMM}/memmap/memalign.c
     ${_FC_COMM}/file/file_path.c
+    ${_FC_COMM}/file/file_path_io.c
     ${_FC_COMM}/file/retro_dirent.c
+    ${_FC_COMM}/streams/file_stream.c
+    ${_FC_COMM}/streams/file_stream_transforms.c
+    ${_FC_COMM}/streams/memory_stream.c
     ${_FC_COMM}/vfs/vfs_implementation.c
     ${_FC_COMM}/encodings/encoding_utf.c
     ${_FC_COMM}/compat/compat_strl.c
-    ${_FC_COMM}/compat/fopen_utf8.c
     ${_FC_COMM}/compat/compat_strcasestr.c
+    ${_FC_COMM}/compat/compat_posix_string.c
+    ${_FC_COMM}/compat/compat_snprintf.c
+    ${_FC_COMM}/compat/fopen_utf8.c
     ${_FC_COMM}/string/stdstring.c
+    ${_FC_COMM}/time/rtime.c
+    ${_FC_COMM}/lists/string_list.c
+    ${_FC_COMM}/lists/dir_list.c
     ${_FC_COMM}/rthreads/rthreads.c
 )
 
@@ -332,7 +342,8 @@ set(_FC_TARGET core_flycast)
 enable_language(ASM)
 set_source_files_properties(${_FC_REC_ARM64_ASM} PROPERTIES LANGUAGE ASM)
 
-add_library(${_FC_TARGET} STATIC ${_FC_ALL_SRC})
+foyer_filter_existing_sources(_FC_FILTERED ${_FC_ALL_SRC})
+add_library(${_FC_TARGET} STATIC ${_FC_FILTERED})
 
 target_include_directories(${_FC_TARGET} PRIVATE
     ${_FC_LIBRETRO}

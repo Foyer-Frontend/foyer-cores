@@ -30,8 +30,22 @@ function(foyer_core_static_library)
         message(FATAL_ERROR "foyer_core_static_library(${C_NAME}): SOURCES required")
     endif()
 
+    # Filter to existing files so an upstream rename/removal doesn't hard-fail
+    # configure. Warn per missing file; fail only when nothing remains.
+    set(_filtered "")
+    foreach(_src IN LISTS C_SOURCES)
+        if (EXISTS "${_src}")
+            list(APPEND _filtered "${_src}")
+        else()
+            message(WARNING "foyer_core_static_library(${C_NAME}): skipping missing ${_src}")
+        endif()
+    endforeach()
+    if (NOT _filtered)
+        message(FATAL_ERROR "foyer_core_static_library(${C_NAME}): no sources exist after filtering")
+    endif()
+
     set(_target core_${C_NAME})
-    add_library(${_target} STATIC ${C_SOURCES})
+    add_library(${_target} STATIC ${_filtered})
 
     target_include_directories(${_target} PUBLIC ${C_INCLUDE_DIRS})
 
@@ -52,4 +66,18 @@ function(foyer_core_static_library)
     )
 
     set(FOYER_CORE_TARGET ${_target} PARENT_SCOPE)
+endfunction()
+
+# Helper for recipes that call add_library directly (nestopia, snes9x, etc.).
+# Filters SOURCES to existing files with a warning, same semantics as above.
+function(foyer_filter_existing_sources out_var)
+    set(_filtered "")
+    foreach(_src IN LISTS ARGN)
+        if (EXISTS "${_src}")
+            list(APPEND _filtered "${_src}")
+        else()
+            message(WARNING "foyer_filter_existing_sources: skipping missing ${_src}")
+        endif()
+    endforeach()
+    set(${out_var} "${_filtered}" PARENT_SCOPE)
 endfunction()

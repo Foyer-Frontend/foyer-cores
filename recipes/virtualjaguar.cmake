@@ -41,7 +41,7 @@ endif()
 set(_VJ_S  ${_VJ}/src)
 set(_VJ_LR ${_VJ}/libretro-common)
 
-add_library(core_virtualjaguar STATIC
+set(_VJ_CORE_SRC
     ${_VJ}/libretro.c
     ${_VJ_S}/tom/blitter.c
     ${_VJ_S}/tom/blitter_compare.c
@@ -74,14 +74,8 @@ add_library(core_virtualjaguar STATIC
     ${_VJ_S}/bios/jagdevcdbios.c
     ${_VJ_S}/bios/jagstub1bios.c
     ${_VJ_S}/bios/jagstub2bios.c
-    ${_VJ_S}/jerry/joystick.c
-    ${_VJ_S}/core/settings.c
-    ${_VJ_S}/core/memtrack.c
-    ${_VJ_S}/core/vjag_memory.c
-    ${_VJ_S}/core/universalhdr.c
-    ${_VJ_S}/jerry/wavetable.c
-    # libretro-common (upstream gates these on STATIC_LINKING != 1
-    # but our player binary doesn't supply them either).
+)
+set(_VJ_COMM_SRC
     ${_VJ_LR}/compat/compat_strcasestr.c
     ${_VJ_LR}/encodings/encoding_utf.c
     ${_VJ_LR}/compat/compat_snprintf.c
@@ -96,6 +90,17 @@ add_library(core_virtualjaguar STATIC
     ${_VJ_LR}/file/file_path_io.c
     ${_VJ_LR}/time/rtime.c
 )
+set(_VJ_EXTRA_SRC
+    ${_VJ_S}/jerry/joystick.c
+    ${_VJ_S}/core/settings.c
+    ${_VJ_S}/core/memtrack.c
+    ${_VJ_S}/core/vjag_memory.c
+    ${_VJ_S}/core/universalhdr.c
+    ${_VJ_S}/jerry/wavetable.c
+)
+set(_VJ_ALL_SRC ${_VJ_CORE_SRC} ${_VJ_EXTRA_SRC} ${_VJ_COMM_SRC})
+foyer_filter_existing_sources(_VJ_FILTERED ${_VJ_ALL_SRC})
+add_library(core_virtualjaguar STATIC ${_VJ_FILTERED})
 
 target_include_directories(core_virtualjaguar PUBLIC
     ${_VJ}

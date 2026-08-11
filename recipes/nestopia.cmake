@@ -30,7 +30,26 @@ list(APPEND _NES_CXX ${_NES_LR}/libretro.cpp)
 # reference forward-declarations the renderer never produces. Drop them.
 list(FILTER _NES_CXX EXCLUDE REGEX "NstVideoFilter(HqX|2xSaI|xBR|ScaleX)\\.cpp$")
 
-add_library(core_nestopia STATIC ${_NES_CXX})
+# libretro.cpp references filestream_*/fill_pathname_* but upstream only
+# compiles those under STATIC_LINKING; we always need them.
+set(_NES_COMM
+    ${_NES_LR}/libretro-common/file/file_path.c
+    ${_NES_LR}/libretro-common/file/file_path_io.c
+    ${_NES_LR}/libretro-common/streams/file_stream.c
+    ${_NES_LR}/libretro-common/streams/file_stream_transforms.c
+    ${_NES_LR}/libretro-common/vfs/vfs_implementation.c
+    ${_NES_LR}/libretro-common/compat/compat_strl.c
+    ${_NES_LR}/libretro-common/compat/compat_strcasestr.c
+    ${_NES_LR}/libretro-common/compat/fopen_utf8.c
+    ${_NES_LR}/libretro-common/compat/compat_posix_string.c
+    ${_NES_LR}/libretro-common/string/stdstring.c
+    ${_NES_LR}/libretro-common/encodings/encoding_utf.c
+    ${_NES_LR}/libretro-common/time/rtime.c
+)
+foyer_filter_existing_sources(_NES_COMM_FILT ${_NES_COMM})
+list(APPEND _NES_CXX ${_NES_COMM_FILT})
+foyer_filter_existing_sources(_NES_FILTERED ${_NES_CXX})
+add_library(core_nestopia STATIC ${_NES_FILTERED})
 target_include_directories(core_nestopia PUBLIC
     ${_NES_DIRS}
     ${_NES_LR}

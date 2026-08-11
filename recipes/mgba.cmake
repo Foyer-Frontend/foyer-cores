@@ -57,7 +57,7 @@ set(_MGBA_CORE_SRC
     ${_MGBA_SRC}/core/sync.c
     ${_MGBA_SRC}/core/thread.c
     ${_MGBA_SRC}/core/tile-cache.c
-    ${_MGBA_SRC}/core/core-serialize.c
+    ${_MGBA_SRC}/core/serialize.c
     ${_MGBA_SRC}/core/timing.c)
 
 set(_MGBA_GB_SRC

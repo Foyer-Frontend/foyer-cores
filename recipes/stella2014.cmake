@@ -83,6 +83,7 @@ set(_S2K_CXX
     ${_S2K_CD}/src/emucore/StateManager.cxx
     ${_S2K_CD}/src/emucore/Switches.cxx
     ${_S2K_CD}/src/emucore/System.cxx
+    ${_S2K_CD}/src/emucore/Thumbulator.c
     ${_S2K_CD}/src/emucore/Thumbulator.cxx
     ${_S2K_CD}/src/emucore/TIA.cxx
     ${_S2K_CD}/src/emucore/TIASnd.cxx
@@ -107,7 +108,9 @@ set(_S2K_C
     ${_S2K_LRC}/vfs/vfs_implementation.c
 )
 
-add_library(core_stella2014 STATIC ${_S2K_CXX} ${_S2K_C})
+set(_S2K_ALL_SRC ${_S2K_CXX} ${_S2K_C})
+foyer_filter_existing_sources(_S2K_FILTERED ${_S2K_ALL_SRC})
+add_library(core_stella2014 STATIC ${_S2K_FILTERED})
 
 target_include_directories(core_stella2014 PUBLIC
     ${_S2K}

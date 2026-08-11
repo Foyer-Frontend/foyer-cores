@@ -23,7 +23,6 @@ set(_RACE_CORE_SRC
     ${_RACE_DIR}/graphics.c
     ${_RACE_DIR}/main.c
     ${_RACE_DIR}/flash.c
-    ${_RACE_DIR}/input.c
     ${_RACE_DIR}/race-memory.c
     ${_RACE_DIR}/ngpBios.c
     ${_RACE_DIR}/state.c

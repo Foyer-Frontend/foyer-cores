@@ -13,9 +13,10 @@ FetchContent_MakeAvailable(libretro_snes9x2010)
 set(_S10    ${libretro_snes9x2010_SOURCE_DIR})
 set(_S10_LR ${_S10}/libretro/libretro-common)
 
-add_library(core_snes9x2010 STATIC
+set(_S10_CORE_SRC
     ${_S10}/src/apu.c
     ${_S10}/src/bsx.c
+    ${_S10}/src/bsflash.c
     ${_S10}/src/c4emu.c
     ${_S10}/src/cheats.c
     ${_S10}/src/controls.c
@@ -54,6 +55,8 @@ add_library(core_snes9x2010 STATIC
     ${_S10_LR}/time/rtime.c
     ${_S10_LR}/vfs/vfs_implementation.c
 )
+foyer_filter_existing_sources(_S10_FILTERED ${_S10_CORE_SRC})
+add_library(core_snes9x2010 STATIC ${_S10_FILTERED})
 
 target_include_directories(core_snes9x2010 PUBLIC
     ${_S10}/libretro

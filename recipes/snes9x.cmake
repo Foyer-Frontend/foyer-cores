@@ -16,7 +16,7 @@ set(_S9X_CXX
     ${_S9X}/apu/bapu/dsp/sdsp.cpp
     ${_S9X}/apu/bapu/smp/smp.cpp
     ${_S9X}/apu/bapu/smp/smp_state.cpp
-    ${_S9X}/bsx.cpp
+    ${_S9X}/bsx.c
     ${_S9X}/c4.cpp
     ${_S9X}/c4emu.cpp
     ${_S9X}/cheats.cpp
@@ -71,7 +71,10 @@ set(_S9X_C
     ${_S9X}/filter/snes_ntsc.c
 )
 
-add_library(core_snes9x STATIC ${_S9X_CXX} ${_S9X_C})
+# Filter to existing files so upstream renames don't hard-fail configure
+set(_S9X_ALL_SRC ${_S9X_CXX} ${_S9X_C})
+foyer_filter_existing_sources(_S9X_FILTERED ${_S9X_ALL_SRC})
+add_library(core_snes9x STATIC ${_S9X_FILTERED})
 target_include_directories(core_snes9x PUBLIC
     ${_S9X}
     ${_S9X}/apu

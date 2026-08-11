@@ -36,8 +36,13 @@ set(_WS_C
 set(_WS_CXX
     ${_WS_M}/mempatcher.cpp
 )
-
-add_library(core_beetle_wswan STATIC ${_WS_C} ${_WS_CXX})
+set(_WS_CXX_FALLBACK
+    ${_WS_M}/mempatcher.c
+)
+# Filter to existing files so .cpp→.c rename doesn't hard-fail configure
+set(_WS_ALL_SRC ${_WS_C} ${_WS_CXX} ${_WS_CXX_FALLBACK})
+foyer_filter_existing_sources(_WS_FILTERED ${_WS_ALL_SRC})
+add_library(core_beetle_wswan STATIC ${_WS_FILTERED})
 
 target_include_directories(core_beetle_wswan PUBLIC
     ${_WS}
