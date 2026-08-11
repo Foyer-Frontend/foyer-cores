@@ -28,6 +28,12 @@ add_library(core_freeintv STATIC
     # libretro-common (upstream gates these on STATIC_LINKING != 1
     # but our player binary doesn't supply them either).
     ${_FI_LR}/file/file_path.c
+    ${_FI_LR}/file/file_path_io.c
+    ${_FI_LR}/streams/file_stream.c
+    ${_FI_LR}/streams/file_stream_transforms.c
+    ${_FI_LR}/streams/interface_stream.c
+    ${_FI_LR}/streams/memory_stream.c
+    ${_FI_LR}/vfs/vfs_implementation.c
     ${_FI_LR}/compat/compat_posix_string.c
     ${_FI_LR}/compat/compat_snprintf.c
     ${_FI_LR}/compat/compat_strl.c
