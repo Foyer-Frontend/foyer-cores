@@ -133,7 +133,10 @@ set(_MGBA_SM83_SRC
 
 set(_MGBA_RETRO_SRC
     ${_MGBA_SRC}/platform/libretro/memory.c
-    ${_MGBA_SRC}/platform/libretro/libretro.c)
+    ${_MGBA_SRC}/platform/libretro/libretro.c
+    ${_MGBA_SRC}/platform/libretro/libretro-audio.c
+    ${_MGBA_SRC}/platform/libretro/libretro-vfs.c
+    ${_MGBA_SRC}/core/directories.c)
 
 set(_MGBA_INIH_SRC
     ${_MGBA_SRC}/third-party/inih/ini.c)
@@ -160,6 +163,9 @@ set(_MGBA_UTIL_SRC
     ${_MGBA_SRC}/util/vfs.c
     ${_MGBA_SRC}/util/vfs/vfs-mem.c
     ${_MGBA_SRC}/util/vfs/vfs-file.c   # needed under ENABLE_VFS_FILE
+    ${_MGBA_SRC}/util/vfs/vfs-dirent.c
+    ${_MGBA_SRC}/util/vfs/vfs-devlist.c
+    ${_MGBA_SRC}/util/vfs/vfs-zip.c
     ${_MGBA_SRC}/util/crc32.c
     ${_MGBA_SRC}/util/memory.c
     ${_MGBA_SRC}/util/text-codec.c
