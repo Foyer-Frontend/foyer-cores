@@ -140,7 +140,7 @@ set(_SWAN_STUB_SRC
     ${_SWAN_STUBS}/gpu_hw_stubs.cpp
 )
 
-add_library(core_swanstation STATIC
+set(_SWAN_ALL_SRC
     ${_SWAN_CORE_SRC}
     ${_SWAN_COMMON_SRC}
     ${_SWAN_LR_SRC}
@@ -148,6 +148,8 @@ add_library(core_swanstation STATIC
     ${_SWAN_VENDOR_SRC}
     ${_SWAN_STUB_SRC}
 )
+foyer_filter_existing_sources(_SWAN_FILTERED ${_SWAN_ALL_SRC})
+add_library(core_swanstation STATIC ${_SWAN_FILTERED})
 
 # Header-search paths. _SWAN_STUBS comes first so our slim gpu_hw_opengl.h /
 # gpu_hw_vulkan.h shadow the upstream headers (which include glad/vulkan).
