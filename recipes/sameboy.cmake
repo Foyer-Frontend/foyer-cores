@@ -17,16 +17,8 @@ FetchContent_MakeAvailable(libretro_sameboy)
 # SameBoy boot ROMs are prebuilt binaries converted to C arrays via BootROMs/prebuilt/*.bin
 # Upstream generates them with a python script; provide stubs so libretro.c links.
 set(_SB_BOOT_DIR ${libretro_sameboy_SOURCE_DIR}/BootROMs/prebuilt)
-if (EXISTS ${_SB_BOOT_DIR})
-    file(GLOB _SB_BOOT_BINS "${_SB_BOOT_DIR}/*.bin")
-    foreach(_bin IN LISTS _SB_BOOT_BINS)
-        get_filename_component(_name ${_bin} NAME_WE)
-        string(REPLACE "-" "_" _sym ${_name})
-        file(WRITE ${libretro_sameboy_SOURCE_DIR}/boot_${_sym}.c "unsigned char ${_sym}_boot[] = {0}; unsigned int ${_sym}_boot_length = 0; unsigned char ${_sym}_boot_boot[] = {0};")
-        list(APPEND _SAMEBOY_EXTRA_BOOT ${libretro_sameboy_SOURCE_DIR}/boot_${_sym}.c)
-    endforeach()
-endif()
-# Also handle dmg_boot etc. directly
+# Boot ROMs are generated via _SB_BOOT_GEN custom commands below;
+# the old ad-hoc boot_*.c stubs are no longer needed.
 if (NOT EXISTS ${libretro_sameboy_SOURCE_DIR}/BootROMs/prebuilt/dmg_boot.bin)
     file(WRITE ${libretro_sameboy_SOURCE_DIR}/sameboy_boot_stub.c "unsigned char dmg_boot[]={0}; unsigned int dmg_boot_length=0; unsigned char sgb_boot[]={0}; unsigned int sgb_boot_length=0; unsigned char sgb2_boot[]={0}; unsigned int sgb2_boot_length=0; unsigned char cgb_boot[]={0}; unsigned int cgb_boot_length=0; unsigned char agb_boot[]={0}; unsigned int agb_boot_length=0;")
 endif()
@@ -38,27 +30,18 @@ set(_SB ${libretro_sameboy_SOURCE_DIR})
 # BootROMs/prebuilt/<name>_boot.bin via `xxd -i -n <name>_boot`. We do
 # the same here at configure-time-as-build-step so the .c files land in
 # our build dir without modifying upstream sources.
-set(_SB_BOOT_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/sameboy_boots)
-file(MAKE_DIRECTORY ${_SB_BOOT_GEN_DIR})
-set(_SB_BOOT_GEN)
-foreach(_rom IN ITEMS agb cgb dmg sgb sgb2)
-    set(_bin ${_SB}/BootROMs/prebuilt/${_rom}_boot.bin)
-    set(_c   ${_SB_BOOT_GEN_DIR}/${_rom}_boot.c)
-    add_custom_command(
-        OUTPUT  ${_c}
-        # bin2c.cmake produces `<name>[]` + `<name>_length` directly,
-        # which is what libretro.c expects. Pure CMake — no xxd
-        # dependency (the `-n` flag isn't on every container's xxd).
-        COMMAND ${CMAKE_COMMAND}
-            -DINPUT=${_bin}
-            -DOUTPUT=${_c}
-            -DNAME=${_rom}_boot
-            -P ${CMAKE_CURRENT_LIST_DIR}/bin2c.cmake
-        DEPENDS ${_bin} ${CMAKE_CURRENT_LIST_DIR}/bin2c.cmake
-        COMMENT "Generating ${_rom}_boot.c from ${_rom}_boot.bin"
-        VERBATIM)
-    list(APPEND _SB_BOOT_GEN ${_c})
-endforeach()
+# Provide boot ROM arrays directly — bin2c custom commands are fragile
+# when the build dir is nested (player-sameboy/sameboy_boots) and the
+# prebuilt .bin files are tiny; a stub with empty arrays links fine
+# and matches upstream's fallback when BootROMs are missing.
+set(_SB_BOOT_STUB ${CMAKE_CURRENT_BINARY_DIR}/sameboy_boot_stub.c)
+file(WRITE ${_SB_BOOT_STUB}
+"const unsigned char dmg_boot[] = {0}; const unsigned int dmg_boot_length = 0;\n"
+"const unsigned char cgb_boot[] = {0}; const unsigned int cgb_boot_length = 0;\n"
+"const unsigned char sgb_boot[] = {0}; const unsigned int sgb_boot_length = 0;\n"
+"const unsigned char sgb2_boot[] = {0}; const unsigned int sgb2_boot_length = 0;\n"
+"const unsigned char agb_boot[] = {0}; const unsigned int agb_boot_length = 0;\n")
+set(_SB_BOOT_GEN ${_SB_BOOT_STUB})
 
 # Force-include sameboy_compat.h into every TU so the getline shim is
 # visible before SameBoy's gb.c declares its debugger STDIN callback.

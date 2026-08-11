@@ -36,26 +36,15 @@ set(_S10_CORE_SRC
     ${_S10}/src/srtc.c
     ${_S10}/src/hdpack.c
     ${_S10}/src/msu1.c
+    ${_S10}/src/msu1_pack.c
     ${_S10}/src/tile.c
     ${_S10}/src/hwregisters.c
     ${_S10}/filter/snes_ntsc.c
     ${_S10}/libretro/libretro.c
-    # libretro-common (upstream gates these on STATIC_LINKING != 1
-    # but our player binary doesn't supply them either).
-    ${_S10_LR}/streams/memory_stream.c
-    ${_S10_LR}/compat/compat_posix_string.c
-    ${_S10_LR}/compat/compat_strcasestr.c
-    ${_S10_LR}/compat/compat_snprintf.c
-    ${_S10_LR}/compat/compat_strl.c
-    ${_S10_LR}/compat/fopen_utf8.c
-    ${_S10_LR}/encodings/encoding_utf.c
-    ${_S10_LR}/file/file_path.c
-    ${_S10_LR}/file/file_path_io.c
-    ${_S10_LR}/streams/file_stream.c
-    ${_S10_LR}/streams/file_stream_transforms.c
-    ${_S10_LR}/string/stdstring.c
-    ${_S10_LR}/time/rtime.c
-    ${_S10_LR}/vfs/vfs_implementation.c
+)
+# All libretro-common via GLOB to cover rnflate, rpng, memalign etc.
+file(GLOB_RECURSE _S10_LRC_EXTRA "${_S10_LR}/*.c")
+list(APPEND _S10_CORE_SRC ${_S10_LRC_EXTRA}
 )
 foyer_filter_existing_sources(_S10_FILTERED ${_S10_CORE_SRC})
 add_library(core_snes9x2010 STATIC ${_S10_FILTERED})

@@ -31,6 +31,7 @@ set(_RACE_CORE_SRC
     ${_RACE_DIR}/neopopsound.c
     ${_RACE_DIR}/cz80.c
     ${_RACE_DIR}/cz80_support.c
+    ${_RACE_DIR}/deps/blip/Blip_Buffer.c
     ${_RACE_LIBRETRO_DIR}/libretro.c
     ${_RACE_LIBRETRO_DIR}/log.c
 )
@@ -58,6 +59,7 @@ foyer_core_static_library(
     INCLUDE_DIRS
         ${_RACE_DIR}
         ${_RACE_LIBRETRO_DIR}
+        ${_RACE_DIR}/deps/blip
         ${_RACE_COMM_DIR}/include
     COMPILE_DEFS
         __LIBRETRO__=1

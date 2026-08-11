@@ -61,30 +61,8 @@ set(_PRBOOM_LR_C
     ${_PRBOOM_LR}/libretro_sound.c
 )
 
-set(_PRBOOM_COMM_C
-    ${_PRBOOM_COMM}/compat/compat_strcasestr.c
-    ${_PRBOOM_COMM}/compat/compat_snprintf.c
-    ${_PRBOOM_COMM}/compat/compat_strl.c
-    ${_PRBOOM_COMM}/compat/compat_posix_string.c
-    ${_PRBOOM_COMM}/compat/fopen_utf8.c
-    ${_PRBOOM_COMM}/encodings/encoding_utf.c
-    ${_PRBOOM_COMM}/streams/file_stream.c
-    ${_PRBOOM_COMM}/streams/file_stream_transforms.c
-    ${_PRBOOM_COMM}/string/stdstring.c
-    ${_PRBOOM_COMM}/vfs/vfs_implementation.c
-    ${_PRBOOM_COMM}/file/file_path.c
-    ${_PRBOOM_COMM}/file/file_path_io.c
-    ${_PRBOOM_COMM}/time/rtime.c
-    # rpng / rjpeg + the trans_stream trio back the new u_png.c
-    # (PNG/JPEG-in-WAD textures) that came with upstream's UDMF /
-    # Heretic/Hexen work — mirror of Makefile.common's additions.
-    ${_PRBOOM_COMM}/formats/png/rpng.c
-    ${_PRBOOM_COMM}/formats/jpeg/rjpeg.c
-    ${_PRBOOM_COMM}/streams/trans_stream.c
-    # trans_stream_zlib.c requires system zlib.h – filter via EXISTS
-    ${_PRBOOM_COMM}/streams/trans_stream_zlib.c
-    ${_PRBOOM_COMM}/streams/trans_stream_pipe.c
-)
+file(GLOB_RECURSE _PRBOOM_LRC_EXTRA "${_PRBOOM_COMM}/*.c")
+set(_PRBOOM_COMM_C ${_PRBOOM_LRC_EXTRA})
 
 set(_PRBOOM_MAD_C
     ${_PRBOOM_MAD}/bit.c

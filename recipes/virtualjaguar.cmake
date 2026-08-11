@@ -41,39 +41,12 @@ endif()
 set(_VJ_S  ${_VJ}/src)
 set(_VJ_LR ${_VJ}/libretro-common)
 
+file(GLOB_RECURSE _VJ_ALL_C "${_VJ_S}/*.c" "${_VJ_S}/*.cpp")
+list(FILTER _VJ_ALL_C EXCLUDE REGEX ".*blitter_simd_(sse2|scalar).*")
+file(GLOB _VJ_LIBRETRO_C "${_VJ}/*.c")
 set(_VJ_CORE_SRC
-    ${_VJ}/libretro.c
-    ${_VJ_S}/tom/blitter.c
-    ${_VJ_S}/tom/blitter_compare.c
-    ${_VJ_S}/tom/blitter_mmio.c
-    ${_VJ_S}/tom/blitter_simd_neon.c
-    ${_VJ_S}/jerry/dac.c
-    ${_VJ_S}/jerry/dsp.c
-    ${_VJ_S}/core/file.c
-    ${_VJ_S}/tom/gpu.c
-    ${_VJ_S}/core/jaguar.c
-    ${_VJ_S}/jerry/jerry.c
-    ${_VJ_S}/tom/op.c
-    ${_VJ_S}/tom/tom.c
-    ${_VJ_S}/cd/cdintf.c
-    ${_VJ_S}/cd/cdrom.c
-    ${_VJ_S}/core/cheat.c
-    ${_VJ_S}/core/crash_detect.c
-    ${_VJ_S}/core/crc32.c
-    ${_VJ_S}/core/event.c
-    ${_VJ_S}/jerry/eeprom.c
-    ${_VJ_S}/core/filedb.c
-    ${_VJ_S}/m68000/cpustbl.c
-    ${_VJ_S}/m68000/cpudefs.c
-    ${_VJ_S}/m68000/cpuemu.c
-    ${_VJ_S}/m68000/cpuextra.c
-    ${_VJ_S}/m68000/m68kinterface.c
-    ${_VJ_S}/m68000/readcpu.c
-    ${_VJ_S}/bios/jagbios.c
-    ${_VJ_S}/bios/jagcdbios.c
-    ${_VJ_S}/bios/jagdevcdbios.c
-    ${_VJ_S}/bios/jagstub1bios.c
-    ${_VJ_S}/bios/jagstub2bios.c
+    ${_VJ_LIBRETRO_C}
+    ${_VJ_ALL_C}
 )
 set(_VJ_COMM_SRC
     ${_VJ_LR}/compat/compat_strcasestr.c

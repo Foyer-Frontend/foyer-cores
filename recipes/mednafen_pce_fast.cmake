@@ -28,32 +28,34 @@ else()
     set(_PF_LZMA_DIR ${_PF_DP}/lzma-19.00)
 endif()
 
+file(GLOB _PF_PCE_C "${_PF_E}/*.c" "${_PF_E}/*.cpp")
+file(GLOB _PF_PCE_FAST_EXTRA "${_PF_E}/pcecd*" "${_PF_E}/psg*")
 set(_PF_CXX
     ${_PF}/libretro.c
     ${_PF}/libretro.cpp
-    ${_PF_E}/pcecd.cpp
-    ${_PF_E}/pcecd_drive.cpp
-    ${_PF_E}/psg.cpp
-    ${_PF_M}/hw_misc/arcade_card/arcade_card.cpp
-    ${_PF_M}/general.cpp
+    ${_PF_PCE_C}
+    ${_PF_M}/hw_misc/arcade_card/arcade_card.c
+    ${_PF_M}/general.c
     ${_PF_M}/FileStream.cpp
     ${_PF_M}/MemoryStream.cpp
     ${_PF_M}/Stream.cpp
-    ${_PF_M}/mempatcher.cpp
-    ${_PF_M}/okiadpcm.cpp
-    ${_PF_CD}/CDAccess.cpp
-    ${_PF_CD}/CDAccess_Image.cpp
-    ${_PF_CD}/CDAccess_CCD.cpp
-    ${_PF_CD}/CDAccess_CHD.cpp
-    ${_PF_CD}/CDAFReader.cpp
-    ${_PF_CD}/CDAFReader_Vorbis.cpp
-    ${_PF_CD}/cdromif.cpp
-    ${_PF_CD}/CDUtility.cpp
-    ${_PF_CD}/lec.cpp
-    ${_PF_CD}/galois.cpp
-    ${_PF_CD}/recover-raw.cpp
-    ${_PF_CD}/l-ec.cpp
-    ${_PF_CD}/edc_crc32.cpp
+    ${_PF_M}/mempatcher.c
+    ${_PF_M}/okiadpcm.c
+    ${_PF_CD}/CDAccess.c
+    ${_PF_CD}/CDAccess_Image.c
+    ${_PF_CD}/CDAccess_CCD.c
+    ${_PF_CD}/CDAccess_CHD.c
+    ${_PF_CD}/CDAFReader.c
+    ${_PF_CD}/CDAFReader_Vorbis.c
+    ${_PF_CD}/cdromif.c
+    ${_PF_CD}/CDUtility.c
+    ${_PF_CD}/lec.c
+    ${_PF_CD}/galois.c
+    ${_PF_CD}/recover-raw.c
+    ${_PF_CD}/l-ec.c
+    ${_PF_CD}/edc_crc32.c
+    ${_PF_M}/cdstream.c
+    ${_PF_CD}/audioreader.c
 )
 
 set(_PF_C

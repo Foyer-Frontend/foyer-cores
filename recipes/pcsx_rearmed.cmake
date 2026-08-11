@@ -104,9 +104,12 @@ set(_PCSX_CORE_SRC
 # gates this via a custom rule; we just compile gte_nf.c (which #includes
 # gte.c with the right knob) the same way every other libnx port does.
 
-# GTE NEON assembly — aarch64 fast path (gte_arm64.S). Filtered via
-# foyer_core_static_library so missing file on older checkout doesn't hard-fail.
-set(_PCSX_GTE_ASM ${_PCSX_LPC}/gte_arm64.S)
+# GTE assembly - both normal and no-flags (nf) variants, aarch64 fast path.
+# Filtered via foyer_core_static_library so missing file on older checkout doesn't hard-fail.
+set(_PCSX_GTE_ASM
+    ${_PCSX_LPC}/gte_arm64.S
+    ${_PCSX_LPC}/gte_nf_arm64.S
+)
 set_source_files_properties(${_PCSX_GTE_ASM} PROPERTIES LANGUAGE ASM)
 
 # ---------------------------------------------------------------------------
@@ -189,6 +192,16 @@ set(_PCSX_CHDR_SRC
     ${_PCSX_LCHDR}/src/libchdr_huffman.c
     ${_PCSX_LCHDR}/src/libchdr_zlib.c
     ${_PCSX_LCHDR}/src/libchdr_zstd.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_cdzs.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_cdzl.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_cdlz.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_cdfl.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_lzma.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_zlib.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_zstd.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_huff.c
+    ${_PCSX_LCHDR}/src/libchdr_codec_flac.c
+    ${_PCSX_LCHDR}/deps/miniz-3.1.1/miniz.c
     ${_PCSX_LCHDR}/src/zlib_codec.c
     ${_PCSX_LCHDR}/src/lzma_codec.c
     # LZMA (bundled, single-thread variant)
