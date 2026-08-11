@@ -13,11 +13,28 @@ FetchContent_Declare(libretro_mame2003_plus
     GIT_REPOSITORY https://github.com/libretro/mame2003-plus-libretro.git
     GIT_TAG        master
     GIT_SHALLOW    TRUE
-    GIT_CONFIG     "core.autocrlf=false;core.eol=lf"
+    GIT_CONFIG     "core.autocrlf=false" "core.eol=lf"
     UPDATE_DISCONNECTED FALSE)
 FetchContent_GetProperties(libretro_mame2003_plus)
 if (NOT libretro_mame2003_plus_POPULATED)
     FetchContent_Populate(libretro_mame2003_plus)
+    # CRLF fix: upstream gng.c has CRLF; container global core.autocrlf
+    # (true) leaves the working copy dirty → FetchContent's
+    # git fetch + rebase aborts with "Your local changes to
+    # src/drivers/gng.c would be overwritten". Force the checkout to
+    # LF and clean any stash leftover from the failed rebase.
+    execute_process(COMMAND git -C ${libretro_mame2003_plus_SOURCE_DIR} config core.autocrlf false
+                    RESULT_VARIABLE _mame_git_cfg1 OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND git -C ${libretro_mame2003_plus_SOURCE_DIR} config core.eol lf
+                    RESULT_VARIABLE _mame_git_cfg2 OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND git -C ${libretro_mame2003_plus_SOURCE_DIR} reset --hard HEAD
+                    RESULT_VARIABLE _mame_reset OUTPUT_QUIET ERROR_QUIET)
+    execute_process(COMMAND git -C ${libretro_mame2003_plus_SOURCE_DIR} clean -fd
+                    RESULT_VARIABLE _mame_clean OUTPUT_QUIET ERROR_QUIET)
+    # Normalize gng.c to LF (the file is ~2 MB, cheap to sed)
+    execute_process(COMMAND bash -c "sed -i 's/\\r$//' src/drivers/gng.c || true"
+                    WORKING_DIRECTORY ${libretro_mame2003_plus_SOURCE_DIR}
+                    RESULT_VARIABLE _mame_sed OUTPUT_QUIET ERROR_QUIET)
 endif()
 
 set(_MAME ${libretro_mame2003_plus_SOURCE_DIR})
