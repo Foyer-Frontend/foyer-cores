@@ -35,63 +35,43 @@ set(_S9X_CXX
     ${_S9X}/apu/bapu/dsp/sdsp.cpp
     ${_S9X}/apu/bapu/smp/smp.cpp
     ${_S9X}/apu/bapu/smp/smp_state.cpp
-    ${_S9X}/bsx.c
-    ${_S9X}/bsflash.c
-    ${_S9X}/zipfile.c
-    ${_S9X}/c4.cpp
-    ${_S9X}/c4emu.cpp
-    ${_S9X}/cheats.cpp
     ${_S9X}/cheats2.cpp
     ${_S9X}/clip.cpp
-    ${_S9X}/conffile.cpp
     ${_S9X}/controls.cpp
     ${_S9X}/cpu.cpp
     ${_S9X}/cpuexec.cpp
     ${_S9X}/cpuops.cpp
     ${_S9X}/crosshairs.cpp
     ${_S9X}/dma.cpp
-    ${_S9X}/dsp.cpp
-    ${_S9X}/dsp1.cpp
-    ${_S9X}/dsp2.cpp
-    ${_S9X}/dsp3.cpp
-    ${_S9X}/dsp4.cpp
-    ${_S9X}/fxinst.cpp
-    ${_S9X}/fxemu.cpp
     ${_S9X}/gfx.cpp
     ${_S9X}/globals.cpp
     ${_S9X}/loadzip.cpp
     ${_S9X}/memmap.cpp
-    ${_S9X}/obc1.cpp
-    ${_S9X}/msu1.cpp
     ${_S9X}/ppu.cpp
-    ${_S9X}/stream.cpp
     ${_S9X}/sa1.cpp
     ${_S9X}/sa1cpu.cpp
-    ${_S9X}/screenshot.cpp
-    ${_S9X}/sdd1.cpp
-    ${_S9X}/sdd1emu.cpp
-    ${_S9X}/seta.cpp
-    ${_S9X}/seta010.cpp
-    ${_S9X}/seta011.cpp
-    ${_S9X}/seta018.cpp
     ${_S9X}/snapshot.cpp
-    ${_S9X}/snes9x.cpp
-    ${_S9X}/spc7110.cpp
-    ${_S9X}/srtc.cpp
-    ${_S9X}/tile.cpp
-    ${_S9X}/tileimpl-n1x1.cpp
-    ${_S9X}/tileimpl-n2x1.cpp
-    ${_S9X}/tileimpl-h2x1.cpp
     ${_S9X}/sha256.cpp
     ${_S9X}/bml.cpp
-    ${_S9X}/movie.cpp
     ${_S9X}/fscompat.cpp
-    ${_S9X}/sa1hw.c
     ${_S9X_LR}/libretro.cpp
 )
 set(_S9X_C
-    ${_S9X}/filter/snes_ntsc.c
+    ${_S9X}/c4emu.c
+    ${_S9X}/msu1.c
+    ${_S9X}/zipfile.c
+    ${_S9X}/srtc.c
+    ${_S9X}/obc1.c
+    ${_S9X}/bsflash.c
     ${_S9X}/tile.c
+    ${_S9X}/bsx.c
+    ${_S9X}/spc7110.c
+    ${_S9X}/fxemu.c
+    ${_S9X}/sdd1.c
+    ${_S9X}/seta.c
+    ${_S9X}/sa1hw.c
+    ${_S9X}/dsp.c
+    ${_S9X}/filter/snes_ntsc.c
 )
 
 # Filter to existing files so upstream renames don't hard-fail configure
