@@ -15,9 +15,13 @@ FetchContent_Declare(libretro_stella2014
 FetchContent_MakeAvailable(libretro_stella2014)
 
 set(_S2K     ${libretro_stella2014_SOURCE_DIR})
+file(GLOB _S2K_EXTRA_CXX "${_S2K_CD}/src/emucore/Cart*.cxx" "${_S2K_CD}/src/emucore/Cart*.c")
+list(APPEND _S2K_CXX ${_S2K_EXTRA_CXX})
 set(_S2K_CD  ${_S2K}/stella)
 set(_S2K_LRC ${_S2K}/libretro-common)
 
+file(GLOB _S2K_EXTRA_CXX "${_S2K_CD}/src/emucore/Cart*.cxx" "${_S2K_CD}/src/emucore/Cart*.c")
+list(APPEND _S2K_CXX ${_S2K_EXTRA_CXX})
 set(_S2K_CXX
     ${_S2K_CD}/src/common/Base.cxx
     ${_S2K_CD}/src/common/Sound.cxx
@@ -84,7 +88,11 @@ set(_S2K_CXX
     ${_S2K_CD}/src/emucore/Switches.cxx
     ${_S2K_CD}/src/emucore/System.cxx
     ${_S2K_CD}/src/emucore/Thumbulator.c
-    ${_S2K_CD}/src/emucore/Thumbulator.cxx
+    # GLOB extra Cart* to cover new BUS/CDF/3EX etc. added upstream
+
+    ${_S2K_CD}/src/emucore/Thumbulator.c
+    # GLOB extra Cart* to cover new BUS/CDF/3EX etc. added upstream
+xx
     ${_S2K_CD}/src/emucore/TIA.cxx
     ${_S2K_CD}/src/emucore/TIASnd.cxx
     ${_S2K_CD}/src/emucore/TIATables.cxx
@@ -92,6 +100,8 @@ set(_S2K_CXX
     ${_S2K}/libretro.cxx
 )
 
+file(GLOB _S2K_EXTRA_CXX "${_S2K_CD}/src/emucore/Cart*.cxx" "${_S2K_CD}/src/emucore/Cart*.c")
+list(APPEND _S2K_CXX ${_S2K_EXTRA_CXX})
 set(_S2K_C
     ${_S2K_LRC}/compat/compat_posix_string.c
     ${_S2K_LRC}/compat/compat_strcasestr.c

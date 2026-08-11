@@ -60,6 +60,15 @@ set(_MGBA_CORE_SRC
     ${_MGBA_SRC}/core/serialize.c
     ${_MGBA_SRC}/core/timing.c)
 
+# Provide version symbols expected by libretro platform code (projectVersion etc.)
+# Upstream generates src/core/version.c from version.c.in via CMake; populate a stub.
+if (NOT EXISTS ${_MGBA_SRC}/core/version.c)
+    file(WRITE ${_MGBA_SRC}/core/version.c "const char* projectVersion = \"0.10.5-foyer\";\nconst char* projectName = \"mGBA\";\n")
+endif()
+list(APPEND _MGBA_CORE_SRC ${_MGBA_SRC}/core/version.c)
+file(GLOB _MGBA_EXTRA_C "${_MGBA_SRC}/util/*.c" "${_MGBA_SRC}/util/**/*.c" "${_MGBA_SRC}/core/*.c")
+list(APPEND _MGBA_UTIL_SRC ${_MGBA_EXTRA_C})
+
 set(_MGBA_GB_SRC
     ${_MGBA_SRC}/gb/audio.c
     ${_MGBA_SRC}/gb/cheats.c
@@ -151,7 +160,10 @@ set(_MGBA_UTIL_SRC
     ${_MGBA_SRC}/util/vfs.c
     ${_MGBA_SRC}/util/vfs/vfs-mem.c
     ${_MGBA_SRC}/util/vfs/vfs-file.c   # needed under ENABLE_VFS_FILE
-    ${_MGBA_SRC}/util/crc32.c)
+    ${_MGBA_SRC}/util/crc32.c
+    ${_MGBA_SRC}/util/memory.c
+    ${_MGBA_SRC}/util/text-codec.c
+    ${_MGBA_SRC}/util/elf-read.c)
 
 # ---------------------------------------------------------------------------
 # Build the core.

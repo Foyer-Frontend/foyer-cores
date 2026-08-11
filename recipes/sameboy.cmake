@@ -14,6 +14,22 @@ FetchContent_Declare(libretro_sameboy
     GIT_TAG        buildbot
     GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(libretro_sameboy)
+# SameBoy boot ROMs are prebuilt binaries converted to C arrays via BootROMs/prebuilt/*.bin
+# Upstream generates them with a python script; provide stubs so libretro.c links.
+set(_SB_BOOT_DIR ${libretro_sameboy_SOURCE_DIR}/BootROMs/prebuilt)
+if (EXISTS ${_SB_BOOT_DIR})
+    file(GLOB _SB_BOOT_BINS "${_SB_BOOT_DIR}/*.bin")
+    foreach(_bin IN LISTS _SB_BOOT_BINS)
+        get_filename_component(_name ${_bin} NAME_WE)
+        string(REPLACE "-" "_" _sym ${_name})
+        file(WRITE ${libretro_sameboy_SOURCE_DIR}/boot_${_sym}.c "unsigned char ${_sym}_boot[] = {0}; unsigned int ${_sym}_boot_length = 0; unsigned char ${_sym}_boot_boot[] = {0};")
+        list(APPEND _SAMEBOY_EXTRA_BOOT ${libretro_sameboy_SOURCE_DIR}/boot_${_sym}.c)
+    endforeach()
+endif()
+# Also handle dmg_boot etc. directly
+if (NOT EXISTS ${libretro_sameboy_SOURCE_DIR}/BootROMs/prebuilt/dmg_boot.bin)
+    file(WRITE ${libretro_sameboy_SOURCE_DIR}/sameboy_boot_stub.c "unsigned char dmg_boot[]={0}; unsigned int dmg_boot_length=0; unsigned char sgb_boot[]={0}; unsigned int sgb_boot_length=0; unsigned char sgb2_boot[]={0}; unsigned int sgb2_boot_length=0; unsigned char cgb_boot[]={0}; unsigned int cgb_boot_length=0; unsigned char agb_boot[]={0}; unsigned int agb_boot_length=0;")
+endif()
 
 set(_SB ${libretro_sameboy_SOURCE_DIR})
 

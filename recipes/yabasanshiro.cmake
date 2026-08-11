@@ -19,7 +19,7 @@ include(FetchContent)
 
 FetchContent_Declare(libretro_yabause
     GIT_REPOSITORY https://github.com/libretro/yabause.git
-    GIT_TAG        7cb15b8f9eea5a6fa7cae34468a6989522bcba75
+    GIT_TAG        master
     GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(libretro_yabause)
 

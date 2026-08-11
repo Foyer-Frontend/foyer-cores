@@ -35,9 +35,11 @@ set(_WS_C
 
 set(_WS_CXX
     ${_WS_M}/mempatcher.cpp
+    ${_WS_E}/comm.cpp
 )
 set(_WS_CXX_FALLBACK
     ${_WS_M}/mempatcher.c
+    ${_WS_E}/comm.c
 )
 # Filter to existing files so .cpp→.c rename doesn't hard-fail configure
 set(_WS_ALL_SRC ${_WS_C} ${_WS_CXX} ${_WS_CXX_FALLBACK})

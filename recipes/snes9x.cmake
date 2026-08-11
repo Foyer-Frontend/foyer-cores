@@ -11,12 +11,33 @@ FetchContent_MakeAvailable(libretro_snes9x)
 set(_S9X      ${libretro_snes9x_SOURCE_DIR})
 set(_S9X_LR   ${_S9X}/libretro)
 
+set(_S9X_COMM_C
+    ${_S9X_LR}/libretro-common/compat/compat_posix_string.c
+    ${_S9X_LR}/libretro-common/compat/compat_strcasestr.c
+    ${_S9X_LR}/libretro-common/compat/compat_snprintf.c
+    ${_S9X_LR}/libretro-common/compat/compat_strl.c
+    ${_S9X_LR}/libretro-common/compat/fopen_utf8.c
+    ${_S9X_LR}/libretro-common/encodings/encoding_utf.c
+    ${_S9X_LR}/libretro-common/encodings/encoding_deflate.c
+    ${_S9X_LR}/libretro-common/file/file_path.c
+    ${_S9X_LR}/libretro-common/file/file_path_io.c
+    ${_S9X_LR}/libretro-common/file/retro_dirent.c
+    ${_S9X_LR}/libretro-common/streams/file_stream.c
+    ${_S9X_LR}/libretro-common/streams/file_stream_transforms.c
+    ${_S9X_LR}/libretro-common/string/stdstring.c
+    ${_S9X_LR}/libretro-common/time/rtime.c
+    ${_S9X_LR}/libretro-common/vfs/vfs_implementation.c
+    ${_S9X_LR}/libretro-common/vfs/vfs_hybrid.c
+)
+
 set(_S9X_CXX
     ${_S9X}/apu/apu.cpp
     ${_S9X}/apu/bapu/dsp/sdsp.cpp
     ${_S9X}/apu/bapu/smp/smp.cpp
     ${_S9X}/apu/bapu/smp/smp_state.cpp
     ${_S9X}/bsx.c
+    ${_S9X}/bsflash.c
+    ${_S9X}/zipfile.c
     ${_S9X}/c4.cpp
     ${_S9X}/c4emu.cpp
     ${_S9X}/cheats.cpp
@@ -65,14 +86,16 @@ set(_S9X_CXX
     ${_S9X}/bml.cpp
     ${_S9X}/movie.cpp
     ${_S9X}/fscompat.cpp
+    ${_S9X}/sa1hw.c
     ${_S9X_LR}/libretro.cpp
 )
 set(_S9X_C
     ${_S9X}/filter/snes_ntsc.c
+    ${_S9X}/tile.c
 )
 
 # Filter to existing files so upstream renames don't hard-fail configure
-set(_S9X_ALL_SRC ${_S9X_CXX} ${_S9X_C})
+set(_S9X_ALL_SRC ${_S9X_CXX} ${_S9X_C} ${_S9X_COMM_C})
 foyer_filter_existing_sources(_S9X_FILTERED ${_S9X_ALL_SRC})
 add_library(core_snes9x STATIC ${_S9X_FILTERED})
 target_include_directories(core_snes9x PUBLIC

@@ -517,14 +517,12 @@ jobs:
           # without it the link has no Vulkan entry points
           # (vkGetInstanceProcAddr undefined). Fall back via find
           # when the image layout moves.
-          if [ -f /nvk-build/src/nouveau/vulkan/libvulkan.a ]; then
-            export SWITCH_VULKAN_LIBRARY=/nvk-build/src/nouveau/vulkan/libvulkan.a
+          found=$(find /nvk-build -name libvulkan.a 2>/dev/null | head -n1)
+          if [ -n "$found" ]; then
+            export SWITCH_VULKAN_LIBRARY="$found"
+            echo "SWITCH_VULKAN_LIBRARY: $found"
           else
-            found=$(find /nvk-build -name libvulkan.a 2>/dev/null | head -n1)
-            if [ -n "$found" ]; then
-              export SWITCH_VULKAN_LIBRARY="$found"
-              echo "SWITCH_VULKAN_LIBRARY fallback: $found"
-            fi
+            export SWITCH_VULKAN_LIBRARY=/nvk-build/src/nouveau/vulkan/libvulkan.a
           fi
           export LDFLAGS="-Wl,--wrap=open -Wl,--wrap=close -Wl,--wrap=stat -Wl,--wrap=lstat"
           # Full log to file — piping make output through tail eats

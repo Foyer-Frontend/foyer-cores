@@ -34,6 +34,8 @@ set(_S10_CORE_SRC
     ${_S10}/src/snapshot.c
     ${_S10}/src/spc7110.c
     ${_S10}/src/srtc.c
+    ${_S10}/src/hdpack.c
+    ${_S10}/src/msu1.c
     ${_S10}/src/tile.c
     ${_S10}/src/hwregisters.c
     ${_S10}/filter/snes_ntsc.c

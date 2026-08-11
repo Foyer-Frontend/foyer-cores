@@ -104,6 +104,11 @@ set(_PCSX_CORE_SRC
 # gates this via a custom rule; we just compile gte_nf.c (which #includes
 # gte.c with the right knob) the same way every other libnx port does.
 
+# GTE NEON assembly — aarch64 fast path (gte_arm64.S). Filtered via
+# foyer_core_static_library so missing file on older checkout doesn't hard-fail.
+set(_PCSX_GTE_ASM ${_PCSX_LPC}/gte_arm64.S)
+set_source_files_properties(${_PCSX_GTE_ASM} PROPERTIES LANGUAGE ASM)
+
 # ---------------------------------------------------------------------------
 # new_dynarec (ari64) — aarch64 backend.
 # ---------------------------------------------------------------------------
@@ -139,7 +144,9 @@ set(_PCSX_GPU_SRC
     ${_PCSX_PLUG}/gpulib/prim.c
     ${_PCSX_PLUG}/gpulib/gpu_async.c
     ${_PCSX_PLUG}/gpu_neon/psx_gpu_if.c
-    ${_PCSX_PLUG}/gpu_neon/psx_gpu/psx_gpu_simd.c)
+    ${_PCSX_PLUG}/gpu_neon/psx_gpu/psx_gpu_simd.c
+    ${_PCSX_PLUG}/gpu_neon/psx_gpu/psx_gpu_arm64.S
+    ${_PCSX_PLUG}/gpu_neon/psx_gpu/arm_utils.S)
 
 # ---------------------------------------------------------------------------
 # Color-space helpers (BGR<->RGB565 etc).
@@ -180,6 +187,10 @@ set(_PCSX_CHDR_SRC
     ${_PCSX_LCHDR}/src/libchdr_chd.c
     ${_PCSX_LCHDR}/src/libchdr_flac.c
     ${_PCSX_LCHDR}/src/libchdr_huffman.c
+    ${_PCSX_LCHDR}/src/libchdr_zlib.c
+    ${_PCSX_LCHDR}/src/libchdr_zstd.c
+    ${_PCSX_LCHDR}/src/zlib_codec.c
+    ${_PCSX_LCHDR}/src/lzma_codec.c
     # LZMA (bundled, single-thread variant)
     ${_PCSX_LZMA}/src/Alloc.c
     ${_PCSX_LZMA}/src/CpuArch.c
@@ -206,6 +217,7 @@ foyer_core_static_library(
     NAME pcsx_rearmed
     SOURCES
         ${_PCSX_CORE_SRC}
+        ${_PCSX_GTE_ASM}
         ${_PCSX_DRC_SRC}
         ${_PCSX_DRC_ASM}
         ${_PCSX_SPU_SRC}

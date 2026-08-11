@@ -81,6 +81,7 @@ set(_PRBOOM_COMM_C
     ${_PRBOOM_COMM}/formats/png/rpng.c
     ${_PRBOOM_COMM}/formats/jpeg/rjpeg.c
     ${_PRBOOM_COMM}/streams/trans_stream.c
+    # trans_stream_zlib.c requires system zlib.h – filter via EXISTS
     ${_PRBOOM_COMM}/streams/trans_stream_zlib.c
     ${_PRBOOM_COMM}/streams/trans_stream_pipe.c
 )
@@ -103,6 +104,7 @@ foyer_filter_existing_sources(_PRBOOM_FILTERED ${_PRBOOM_ALL_SRC})
 add_library(core_prboom STATIC ${_PRBOOM_FILTERED})
 
 target_include_directories(core_prboom PUBLIC
+    /opt/devkitpro/portlibs/switch/include
     ${_PRBOOM}
     ${_PRBOOM_SRC}
     ${_PRBOOM_LR}
@@ -127,6 +129,7 @@ target_compile_definitions(core_prboom PRIVATE
     # and miniz.c provides the zlib-compatible symbols, exactly like
     # upstream's Makefile (which links no real zlib either).
     HAVE_ZLIB=1
+    HAVE_MINIZ=1
 )
 
 # z_zone.h is force-included on every src TU per upstream's Makefile;
