@@ -153,6 +153,7 @@ jobs:
             DEFS="-D__SWITCH__ -D_GNU_SOURCE -D_DEFAULT_SOURCE -include /work/compat/switch_compat.h"
             $GCC -c winsys/drm_shim.c         -o $OBJ/drm_shim.o         $ARCH $DEFS $INC -O2
             $GCC -c winsys/switch_libc_shim.c -o $OBJ/switch_libc_shim.o $ARCH $DEFS $INC -O2
+            $GCC -c winsys/vk_public_alias.c  -o $OBJ/vk_public_alias.o  $ARCH $DEFS $INC -O2 || echo "vk_public_alias.c not found, skipping"
             $GCC -c compat/compat.c           -o $OBJ/compat.o           $ARCH $DEFS $INC -O2
             {
               echo "CREATE $MB/src/nouveau/vulkan/libvulkan.a"
@@ -182,6 +183,7 @@ jobs:
               fi
               echo "ADDMOD $OBJ/drm_shim.o"
               echo "ADDMOD $OBJ/switch_libc_shim.o"
+              if [ -f $OBJ/vk_public_alias.o ]; then echo "ADDMOD $OBJ/vk_public_alias.o"; fi
               echo "ADDMOD $OBJ/compat.o"
               echo "SAVE"
               echo "END"
