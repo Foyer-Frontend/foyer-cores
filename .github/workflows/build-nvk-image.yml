@@ -74,7 +74,8 @@ jobs:
           # the VI WSI backend exposes VK_NN_vi_surface. Spec-correct
           # consumers (Dolphin) require base-ext + platform-ext and
           # bail. Add VI to the gate.
-          sed -i 's|defined(VK_USE_PLATFORM_DISPLAY_KHR)|defined(VK_USE_PLATFORM_DISPLAY_KHR) || \\\n    defined(VK_USE_PLATFORM_VI_NN)|' \
+          # Use # as sed delimiter and double-escape for the shell.
+          sed -i 's#defined(VK_USE_PLATFORM_DISPLAY_KHR)#defined(VK_USE_PLATFORM_DISPLAY_KHR) || \\\n    defined(VK_USE_PLATFORM_VI_NN)#' \
               nvk/mesa-25/src/nouveau/vulkan/nvk_physical_device.h
           grep -A 2 'VK_USE_PLATFORM_DISPLAY_KHR' nvk/mesa-25/src/nouveau/vulkan/nvk_physical_device.h | head -4
 
